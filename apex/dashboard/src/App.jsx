@@ -688,9 +688,12 @@ const App = () => {
 
         {/* Page Content */}
         <div className="page-content">
-          {error && (
-            <div className="offline-banner">
-              ⚠ Backend offline — showing demo data
+          {wsConnected && (
+            <div className="connection-badge connected">
+              <div className="connection-dot"></div>
+              <span style={{ color: 'white', fontFamily: 'DM Sans', fontWeight: 500 }}>
+                ● LIVE
+              </span>
             </div>
           )}
 
@@ -1445,14 +1448,19 @@ const App = () => {
                 marginBottom: '2rem' 
               }}>
                 <div className="card" style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.25rem', color: 'white', marginBottom: '0.5rem', fontFamily: 'Inter', fontWeight: 600 }}>
+                  <div style={{ fontSize: '2rem', color: 'white', marginBottom: '0.5rem', fontFamily: 'Inter', fontWeight: 600 }}>
                     Total PnL
                   </div>
                   <div style={{ 
                     fontSize: '2rem', 
-                    fontFamily: 'JetBrains Mono', 
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    fontFamily: 'JetBrains Mono',
                     fontWeight: 700,
-                    color: '#10b981'
+                    color: 'white',
+                    textAlign: 'center',
+                    marginBottom: '1rem'
                   }}>
                     $531.90
                   </div>
