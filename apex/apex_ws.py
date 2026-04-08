@@ -163,10 +163,10 @@ class APEXWebSocketServer:
         asyncio.create_task(self.periodic_agent_status())
         
         # Start the WebSocket server
-        logger.info("Starting APEX WebSocket server on port 8765...")
+        logger.info("Starting APEX WebSocket server on port 8766...")
         
-        async with serve(self.handle_client, "localhost", 8765) as server:
-            logger.info("✅ APEX WebSocket server running on ws://localhost:8765")
+        async with serve(self.handle_client, "localhost", 8766) as server:
+            logger.info("APEX WebSocket server running on ws://localhost:8766")
             await server.wait_closed()
     
     async def periodic_pipeline_run(self):

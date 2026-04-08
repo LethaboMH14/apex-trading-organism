@@ -64,6 +64,29 @@ Tx examples:
 - https://sepolia.etherscan.io/tx/f46b205ac0c632a8f5cf1a8f1ca31c964882c7693c78c1d1d53b6a5cb218f517
 - https://sepolia.etherscan.io/tx/c8b59da268f3bd1e7655cec59fb456b483381ec3a15c1e20d9357d37f88ddb55
 
+## Trust & Validation Model
+APEX implements a complete ERC-8004 trust chain:
+Every trade generates a cryptographic validation 
+artifact posted to ValidationRegistry. Agents earn 
+reputation through objective on-chain outcomes — 
+not self-reported metrics. The validation score (88, 
+targeting 95+) represents the average quality of 
+22+ submitted trade checkpoints, each containing 
+AI-generated reasoning, signal values, risk 
+assessment, and confidence scores.
+
+## Compliance & Risk Architecture  
+APEX treats risk as infrastructure, not afterthought:
+- CircuitBreaker: Auto-halts trading if drawdown 
+  exceeds 5% in any session
+- RiskGate: Every trade intent must pass position 
+  size, volatility, and momentum checks before 
+  submission
+- Hard limits: $350 max position, 5% stop-loss, 
+  48 trades/day maximum
+- Transparent: All risk decisions recorded on-chain
+This makes APEX auditable and compliant by design.
+
 CATEGORIES: Finance, ERC-8004, Investment, Agent Builder
 TECHNOLOGIES: CrewAI, LangChain, OpenAI, DeepSeek R1, 
 Anthropic Claude, Groq, Google Gemini, web3.py

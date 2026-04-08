@@ -46,7 +46,7 @@ class APEXLive:
         """Initialize the live trading system."""
         self.data_pipeline = DataPipeline()
         self.sentiment_pipeline = SentimentPipeline()
-        self.risk_params = RiskParameters(max_drawdown=0.05, max_position_size=0.1)
+        self.risk_params = RiskParameters(max_drawdown_pct=0.05, max_position_pct=0.1)
         self.circuit_breaker = CircuitBreaker(self.risk_params)
         self.risk_gate = RiskGate(self.risk_params, self.circuit_breaker)
         self.llm_router = LLMRouter()

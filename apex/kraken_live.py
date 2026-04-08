@@ -35,100 +35,79 @@ class KrakenLiveTrader:
         """Initialize Kraken live trader."""
         self.api_key = os.getenv("KRAKEN_API_KEY")
         self.api_secret = os.getenv("KRAKEN_API_SECRET")
-        self.cli_path = os.getenv("KRAKEN_CLI_PATH", "kraken")
+        # Check if we're running in WSL and use direct path
+        if os.path.exists("/home/userlethabomh14/.cargo/bin/kraken"):
+            self.kraken_cmd = ["/home/userlethabomh14/.cargo/bin/kraken"]
+        else:
+            # Fallback to WSL path
+            self.kraken_cmd = [
+                "wsl", "-e", 
+                "/home/userlethabomh14/.cargo/bin/kraken"
+            ]
         
         logger.info("KrakenLiveTrader initialized")
-        logger.info(f"CLI Path: {self.cli_path}")
+        logger.info(f"CLI Path: wsl")
         logger.info(f"API Key configured: {'Yes' if self.api_key else 'No'}")
     
-    def get_balance(self) -> Dict[str, Any]:
-        """Get account balance."""
+    def _run(self, args):
+        """Run kraken CLI command through WSL"""
+        import subprocess
         try:
-            logger.info("Fetching account balance...")
             result = subprocess.run(
-                [self.cli_path, "balance"],
-                capture_output=True, text=True, timeout=30
+                self.kraken_cmd + args,
+                capture_output=True, text=True, timeout=30,
+                env={
+                    **os.environ,
+                    "KRAKEN_API_KEY": self.api_key,
+                    "KRAKEN_API_SECRET": self.api_secret
+                }
             )
-            
-            if result.returncode == 0:
-                balance_data = json.loads(result.stdout)
-                logger.info("Balance fetched successfully")
-                return balance_data
-            else:
-                error_msg = f"CLI error: {result.stderr}"
-                logger.error(f"Balance fetch failed: {error_msg}")
-                return {"error": error_msg}
-                
-        except subprocess.TimeoutExpired:
-            error_msg = "Balance fetch timed out"
-            logger.error(error_msg)
-            return {"error": error_msg}
-        except json.JSONDecodeError as e:
-            error_msg = f"Invalid JSON response: {e}"
-            logger.error(error_msg)
-            return {"error": error_msg}
+            return result.stdout, result.stderr, result.returncode
         except Exception as e:
-            error_msg = f"Unexpected error: {e}"
-            logger.error(error_msg)
-            return {"error": error_msg}
+            return "", str(e), 1
     
-    def place_market_order(self, pair: str, side: str, volume: float) -> Dict[str, Any]:
-        """
-        Place real market order via Kraken CLI.
+    def test_connection(self):
+        stdout, stderr, code = self._run(["--version"])
+        return code == 0, stdout.strip()
+    
+    def get_balance(self):
+        stdout, stderr, code = self._run(["balance"])
+        if code == 0:
+            try:
+                import json
+                return json.loads(stdout)
+            except:
+                return {"raw": stdout}
+        return {"error": stderr}
+    
+    def place_market_order(self, pair, side, volume):
+        """Place real market order"""
+        if side == "buy":
+            stdout, stderr, code = self._run([
+                "order", "buy", pair, str(volume), "--type", "market", "-o", "json"
+            ])
+        elif side == "sell":
+            stdout, stderr, code = self._run([
+                "order", "sell", pair, str(volume), "--type", "market", "-o", "json"
+            ])
+        else:
+            return {"error": f"Invalid side: {side}"}
         
-        Args:
-            pair: Trading pair (e.g., "XBTUSD")
-            side: "buy" or "sell"
-            volume: Order volume in base currency
-            
-        Returns:
-            Order result with order ID and details
-        """
-        try:
-            logger.info(f"Placing {side} market order: {volume} {pair}")
-            
-            result = subprocess.run(
-                [self.cli_path, "order", "add",
-                 "--pair", pair,
-                 "--type", side,
-                 "--ordertype", "market", 
-                 "--volume", str(volume)],
-                capture_output=True, text=True, timeout=30
-            )
-            
-            if result.returncode == 0:
-                order_data = json.loads(result.stdout)
-                logger.info(f"Order placed successfully: {order_data.get('txid', 'Unknown')}")
-                return order_data
-            else:
-                error_msg = f"CLI error: {result.stderr}"
-                logger.error(f"Order placement failed: {error_msg}")
-                return {"error": error_msg}
-                
-        except subprocess.TimeoutExpired:
-            error_msg = "Order placement timed out"
-            logger.error(error_msg)
-            return {"error": error_msg}
-        except json.JSONDecodeError as e:
-            error_msg = f"Invalid JSON response: {e}"
-            logger.error(error_msg)
-            return {"error": error_msg}
-        except Exception as e:
-            error_msg = f"Unexpected error: {e}"
-            logger.error(error_msg)
-            return {"error": error_msg}
+        if code == 0:
+            try:
+                import json
+                return json.loads(stdout)
+            except:
+                return {"raw": stdout}
+        return {"error": stderr}
     
     def get_pnl(self) -> Dict[str, Any]:
         """Get current PnL from trade history."""
-        try:
-            logger.info("Fetching PnL data...")
-            result = subprocess.run(
-                [self.cli_path, "trades", "history"],
-                capture_output=True, text=True, timeout=30
-            )
-            
-            if result.returncode == 0:
-                pnl_data = json.loads(result.stdout)
+        stdout, stderr, code = self._run(["trades", "history"])
+        if code == 0:
+            try:
+                import json
+                pnl_data = json.loads(stdout)
                 
                 # Calculate simple PnL from trade history
                 total_pnl = 0.0
@@ -150,58 +129,40 @@ class KrakenLiveTrader:
                 
                 logger.info(f"PnL calculated: ${total_pnl:.2f} from {trade_count} trades")
                 return result_data
-            else:
-                error_msg = f"CLI error: {result.stderr}"
-                logger.error(f"PnL fetch failed: {error_msg}")
-                return {"error": error_msg}
-                
-        except subprocess.TimeoutExpired:
-            error_msg = "PnL fetch timed out"
-            logger.error(error_msg)
-            return {"error": error_msg}
-        except json.JSONDecodeError as e:
-            error_msg = f"Invalid JSON response: {e}"
-            logger.error(error_msg)
-            return {"error": error_msg}
-        except Exception as e:
-            error_msg = f"Unexpected error: {e}"
-            logger.error(error_msg)
-            return {"error": error_msg}
+            except:
+                return {"raw": stdout}
+        return {"error": stderr}
     
-    def test_connection(self) -> bool:
+    def test_connection(self):
         """Test if Kraken CLI is working and authenticated."""
         try:
             logger.info("Testing Kraken CLI connection...")
-            result = subprocess.run(
-                [self.cli_path, "--version"],
-                capture_output=True, text=True, timeout=10
-            )
+            stdout, stderr, code = self._run(["--version"])
             
-            if result.returncode == 0:
-                version = result.stdout.strip()
+            if code == 0:
+                version = stdout.strip()
                 logger.info(f"Kraken CLI working: {version}")
                 
                 # Test authentication with balance call
                 balance_test = self.get_balance()
                 if "error" not in balance_test:
                     logger.info("Kraken API authentication successful")
-                    return True
+                    return True, version
                 else:
                     logger.warning("CLI working but authentication failed")
-                    return False
+                    return False, version
             else:
-                logger.error(f"Kraken CLI not working: {result.stderr}")
-                return False
-                
+                logger.error(f"Kraken CLI not working: {stderr}")
+                return False, "CLI not found"
         except subprocess.TimeoutExpired:
             logger.error("Kraken CLI test timed out")
-            return False
+            return False, "Test timed out"
         except FileNotFoundError:
             logger.error(f"Kraken CLI not found at: {self.cli_path}")
-            return False
+            return False, "CLI not found"
         except Exception as e:
             logger.error(f"Connection test failed: {e}")
-            return False
+            return False, "Unknown error"
     
     def get_ticker(self, pair: str = "XBTUSD") -> Dict[str, Any]:
         """Get real-time ticker data."""

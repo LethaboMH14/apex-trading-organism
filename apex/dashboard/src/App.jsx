@@ -13,7 +13,7 @@ import { AgentFeed, ReputationScore, PnLChart, TradeLog } from './components';
 
 // API Configuration
 const API_BASE = 'http://localhost:3001';
-const WS_URL = 'ws://localhost:3002';
+const WS_URL = 'ws://localhost:8766';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
