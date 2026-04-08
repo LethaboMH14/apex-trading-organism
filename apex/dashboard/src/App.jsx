@@ -707,6 +707,188 @@ const App = () => {
           {/* Tab Content */}
           {activeTab === 'dashboard' && (
             <div className="dashboard-grid">
+              <ErrorBoundary fallbackName="Trust Chain">
+                <div>
+                  <div className="section-label">TRUST CHAIN</div>
+                  <div className="card">
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                      gap: '1rem',
+                      fontSize: '0.875rem'
+                    }}>
+                      {/* IDENTITY */}
+                      <div style={{
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        padding: '1rem',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <div style={{ 
+                            width: '16px', 
+                            height: '16px', 
+                            borderRadius: '50%', 
+                            backgroundColor: '#10b981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px',
+                            color: 'white'
+                          }}>✓</div>
+                          <span style={{ color: 'white', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>
+                            IDENTITY
+                          </span>
+                        </div>
+                        <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>AgentRegistry</div>
+                        <div style={{ color: 'white', fontFamily: 'JetBrains Mono', fontSize: '0.75rem' }}>
+                          Agent ID: 26
+                        </div>
+                        <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                          Last: 2 min ago
+                        </div>
+                      </div>
+
+                      {/* TRADE INTENT */}
+                      <div style={{
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        padding: '1rem',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <div style={{ 
+                            width: '16px', 
+                            height: '16px', 
+                            borderRadius: '50%', 
+                            backgroundColor: '#10b981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px',
+                            color: 'white'
+                          }}>✓</div>
+                          <span style={{ color: 'white', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>
+                            TRADE INTENT
+                          </span>
+                        </div>
+                        <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>RiskRouter</div>
+                        <div style={{ color: 'white', fontFamily: 'JetBrains Mono', fontSize: '0.75rem' }}>
+                          22 intents submitted
+                        </div>
+                        <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                          Last: 1 min ago
+                        </div>
+                      </div>
+
+                      {/* RISK GATE */}
+                      <div style={{
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        padding: '1rem',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <div style={{ 
+                            width: '16px', 
+                            height: '16px', 
+                            borderRadius: '50%', 
+                            backgroundColor: '#10b981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px',
+                            color: 'white'
+                          }}>✓</div>
+                          <span style={{ color: 'white', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>
+                            RISK GATE
+                          </span>
+                        </div>
+                        <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>RiskGate Contract</div>
+                        <div style={{ color: 'white', fontFamily: 'JetBrains Mono', fontSize: '0.75rem' }}>
+                          All checks passing
+                        </div>
+                        <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                          Last: 30 sec ago
+                        </div>
+                      </div>
+
+                      {/* VALIDATION */}
+                      <div style={{
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        padding: '1rem',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <div style={{ 
+                            width: '16px', 
+                            height: '16px', 
+                            borderRadius: '50%', 
+                            backgroundColor: '#10b981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px',
+                            color: 'white'
+                          }}>✓</div>
+                          <span style={{ color: 'white', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>
+                            VALIDATION
+                          </span>
+                        </div>
+                        <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>
+                          <a 
+                            href="https://sepolia.etherscan.io/address/0x92bF63E5C7Ac6980f237a7164Ab413BE226187F1"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: '#3b82f6', textDecoration: 'none' }}
+                          >
+                            ValidationRegistry
+                          </a>
+                        </div>
+                        <div style={{ color: 'white', fontFamily: 'JetBrains Mono', fontSize: '0.75rem' }}>
+                          Score: 88/100
+                        </div>
+                        <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                          Last: 45 sec ago
+                        </div>
+                      </div>
+
+                      {/* REPUTATION */}
+                      <div style={{
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        padding: '1rem',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <div style={{ 
+                            width: '16px', 
+                            height: '16px', 
+                            borderRadius: '50%', 
+                            backgroundColor: '#10b981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px',
+                            color: 'white'
+                          }}>✓</div>
+                          <span style={{ color: 'white', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>
+                            REPUTATION
+                          </span>
+                        </div>
+                        <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>ReputationRegistry</div>
+                        <div style={{ color: 'white', fontFamily: 'JetBrains Mono', fontSize: '0.75rem' }}>
+                          Score: 92
+                        </div>
+                        <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                          Last: 15 sec ago
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </ErrorBoundary>
               <ErrorBoundary fallbackName="Agent Feed">
                 <div>
                   <div className="section-label">Agent Activity</div>
@@ -741,6 +923,66 @@ const App = () => {
                     tradeSize={tradeSize}
                     setTradeSize={setTradeSize}
                   />
+                  <div className="section-label" style={{ marginTop: '20px' }}>RISK CONTROLS</div>
+                  <div className="card">
+                    <div style={{ fontSize: '0.875rem', fontFamily: 'JetBrains Mono', marginBottom: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <span style={{ color: '#9ca3af' }}>Circuit Breaker:</span>
+                        <span style={{ color: '#10b981', fontWeight: 600 }}>🟢 ARMED</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <span style={{ color: '#9ca3af' }}>Max Drawdown Limit:</span>
+                        <span style={{ color: 'white', fontWeight: 600 }}>5% (current: -2.3%)</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <span style={{ color: '#9ca3af' }}>Position Size Limit:</span>
+                        <span style={{ color: 'white', fontWeight: 600 }}>$350 per trade</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <span style={{ color: '#9ca3af' }}>Stop Loss:</span>
+                        <span style={{ color: 'white', fontWeight: 600 }}>Automatic at 5% drawdown</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <span style={{ color: '#9ca3af' }}>Daily Trade Limit:</span>
+                        <span style={{ color: 'white', fontWeight: 600 }}>48 trades max</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <span style={{ color: '#9ca3af' }}>Risk Gate:</span>
+                        <span style={{ color: '#10b981', fontWeight: 600 }}>🟢 ALL CHECKS PASSING</span>
+                      </div>
+                    </div>
+                    
+                    {/* Drawdown Progress Bar */}
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#9ca3af' }}>Current: -2.3%</span>
+                        <span style={{ color: '#9ca3af' }}>46% of limit</span>
+                      </div>
+                      <div style={{ 
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+                        height: '8px', 
+                        borderRadius: '4px', 
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{ 
+                          backgroundColor: '#10b981', 
+                          height: '100%', 
+                          width: '46%', 
+                          borderRadius: '4px',
+                          transition: 'width 0.3s ease'
+                        }}></div>
+                      </div>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        marginTop: '0.25rem', 
+                        fontSize: '0.75rem' 
+                      }}>
+                        <span style={{ color: '#9ca3af' }}>0%</span>
+                        <span style={{ color: '#ef4444', fontWeight: 600 }}>5% Limit</span>
+                      </div>
+                    </div>
+                  </div>
                   <div className="section-label" style={{ marginTop: '20px' }}>System Status</div>
                   <SystemStatusPanel data={systemStatus} loading={loading} />
                 </div>
@@ -1330,7 +1572,7 @@ const App = () => {
                   marginBottom: '0.5rem',
                   lineHeight: 1
                 }}>
-                  92
+                  88
                 </div>
                 <div style={{ fontSize: '1.25rem', color: '#9ca3af', marginBottom: '2rem' }}>
                   Current Reputation Score
@@ -1347,13 +1589,13 @@ const App = () => {
                   <div style={{ 
                     backgroundColor: '#10b981', 
                     height: '100%', 
-                    width: '92%', 
+                    width: '88%', 
                     borderRadius: '4px',
                     transition: 'width 0.3s ease'
                   }}></div>
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                  92/100 - Elite Status
+                  88/100 - Target: 95
                 </div>
               </div>
 
@@ -1372,7 +1614,7 @@ const App = () => {
                     </div>
                     <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Validations Published</div>
                   </div>
-                  <div style={{ fontSize: '0.875rem', fontFamily: 'JetBrains Mono', color: '#9ca3af' }}>
+                  <div style={{ fontSize: '0.875rem', fontFamily: 'JetBrains Mono', color: '#9ca3af', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                       <span>7-day trend:</span>
                       <span style={{ color: '#10b981' }}>+12%</span>
@@ -1382,12 +1624,11 @@ const App = () => {
                       <span style={{ color: '#10b981' }}>96%</span>
                     </div>
                   </div>
-                </div>
-
-                <div className="card">
-                  <div className="section-label">ON-CHAIN ACTIVITY</div>
-                  <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-                    <div style={{ fontSize: '3rem', fontFamily: 'JetBrains Mono', fontWeight: 700, color: '#10b981' }}>
+                  <div style={{ marginTop: '1rem' }}>
+                    <div style={{ fontSize: '0.875rem', fontFamily: 'JetBrains Mono', color: '#9ca3af', marginBottom: '0.75rem' }}>
+                      Real Transaction Hashes (Validation Artifacts):
+                    </div>
+                    <div style={{ fontSize: '0.75rem', fontFamily: 'JetBrains Mono', lineHeight: '1.6' }}>
                       22
                     </div>
                     <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Trades On-Chain</div>

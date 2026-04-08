@@ -105,9 +105,9 @@ const AgentFeed = ({ decisions = [], maxItems = 50, isConnected = true }) => {
       const mockDecisions = [
         {
           id: '1',
-          agentName: 'DR. ZARA OKAFOR',
-          role: 'Strategy Orchestrator',
-          department: 'strategy',
+          agentName: 'PROF. KWAME ASANTE',
+          role: 'LLM Router (Chief AI Officer)',
+          department: 'ai',
           action: 'DECIDED',
           confidence: 85,
           timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
@@ -127,13 +127,13 @@ const AgentFeed = ({ decisions = [], maxItems = 50, isConnected = true }) => {
         },
         {
           id: '3',
-          agentName: 'ENGR. MARCUS ODUYA',
-          role: 'Kraken Execution',
-          department: 'execution',
-          action: 'EXECUTING',
+          agentName: 'DR. YUKI TANAKA',
+          role: 'Market Intelligence',
+          department: 'data',
+          action: 'ANALYZING',
           confidence: 95,
           timestamp: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-          reasoning: 'Executing BTC buy order at current market price. Order size: 0.5 BTC. Expected slippage: <0.1%.',
+          reasoning: 'Analyzing real-time market data from multiple exchanges. BTC showing strong buy signals across all major venues.',
           onChainHash: '0xabcdef1234567890abcdef1234567890abcdef12'
         },
         {
