@@ -1,0 +1,11 @@
+.reputation-card{background:#0D1117;padding:24px;border-radius:var(--radius-card);border:1px solid rgba(255,255,255,0.08);color:var(--text-primary);margin-bottom:20px;box-shadow:0 4px 16px rgba(0,0,0,0.3);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1)}
+.reputation-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4);border-color:rgba(255,255,255,0.12)}
+.rep-score{font-size:56px;color:#33B5E5;font-weight:700;text-align:center;font-family:'JetBrains Mono',monospace;text-shadow:0 0 16px rgba(51, 181, 229, 0.4);line-height:1}
+.rep-label{text-align:center;color:var(--text-secondary);margin-bottom:20px;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;font-size:12px}
+.rep-chart{height:140px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:var(--radius-card);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);margin-bottom:20px;position:relative;overflow:hidden}
+.rep-chart::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg, transparent, var(--accent-cyan), transparent)}
+.rep-stats{display:flex;gap:10px}
+.stat{flex:1;background:#161B22;padding:16px;border-radius:var(--radius-card);text-align:center;border:1px solid rgba(255,255,255,0.08);transition:all 0.2s ease}
+.stat:hover{background:#1C2128;border-color:rgba(255,255,255,0.12)}
+.stat-num{font-weight:700;color:var(--text-primary);font-size:20px;font-family:'JetBrains Mono',monospace;line-height:1}
+.stat-label{font-size:11px;color:var(--text-secondary);margin-top:6px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em}
