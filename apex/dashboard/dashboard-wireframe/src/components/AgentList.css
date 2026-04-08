@@ -1,0 +1,20 @@
+.agent-list{display:flex;flex-direction:column;gap:10px;max-height:80vh;overflow:auto;padding-right:4px}
+.agent-card{background:#0D1117;border:1px solid rgba(255,255,255,0.08);padding:16px;border-radius:var(--radius-card);color:var(--text-primary);box-shadow:0 4px 16px rgba(0,0,0,0.3);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1)}
+.agent-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4);border-color:rgba(255,255,255,0.12)}
+.agent-row{display:flex;align-items:center;justify-content:space-between}
+.agent-row.top{margin-bottom:10px}
+.agent-row.meta{margin-bottom:14px}
+.agent-row.confidence{margin-bottom:10px}
+.agent-name{font-weight:600;color:var(--text-primary);font-size:14px}
+.agent-status{font-size:10px;padding:4px 8px;border-radius:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em}
+.status-executing{background:#33B5E5;color:#071617}
+.status-validated{background:#00D4AA;color:#071617}
+.status-learning{background:#FF9933;color:#071617}
+.agent-role{color:var(--text-secondary);font-size:12px;font-weight:500}
+.agent-addr{font-family:'JetBrains Mono',monospace;color:#33B5E5;font-size:11px}
+.conf-bar{flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin:0 10px;overflow:hidden}
+.conf-fill{height:100%;transition:width 0.3s ease;border-radius:3px}
+.conf-value{width:45px;text-align:right;font-weight:600;color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-size:12px}
+.conf-label{font-size:11px;color:var(--text-secondary);font-weight:500}
+.link{background:transparent;border:none;color:#33B5E5;cursor:pointer;padding:6px 0;font-size:11px;font-weight:500;transition:opacity 0.2s ease}
+.link:hover{opacity:0.8}

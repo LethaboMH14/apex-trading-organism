@@ -1,0 +1,153 @@
+{
+  "__meta__": {
+    "name": "APEX Multi-Cloud AI Dev Environment",
+    "version": "1.0.0",
+    "description": "Unified config for Windsurf, Roo Code, Ollama, Cloud LLMs, and APEX agent model routing.",
+    "author": "lethabo masilo phukuile"
+  },
+
+  "__windsurf_providers__": {
+    "providers": [
+      {
+        "name": "OpenRouter",
+        "type": "openai",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "apiKey": "${OPENROUTER_API_KEY}",
+        "models": [
+          "qwen/qwen-3-72b-instruct",
+          "deepseek/deepseek-r1",
+          "yi/yi-coder-34b",
+          "mistralai/mistral-large-24.02"
+        ]
+      },
+      {
+        "name": "Groq",
+        "type": "openai",
+        "baseUrl": "https://api.groq.com/openai/v1",
+        "apiKey": "${GROQ_API_KEY}",
+        "models": [
+          "llama-3.3-70b-versatile",
+          "mixtral-8x7b"
+        ]
+      },
+      {
+        "name": "GoogleAI",
+        "type": "google",
+        "apiKey": "${GOOGLE_API_KEY}",
+        "models": [
+          "gemini-2.5-pro",
+          "gemini-2.5-flash"
+        ]
+      },
+      {
+        "name": "AzureOpenAI",
+        "type": "azure",
+        "endpoint": "${AZURE_OPENAI_ENDPOINT}",
+        "apiKey": "${AZURE_OPENAI_API_KEY}",
+        "models": [
+          "gpt-4o",
+          "gpt-4-turbo",
+          "phi-4"
+        ]
+      },
+      {
+        "name": "BytePlus",
+        "type": "openai",
+        "baseUrl": "https://ark.byteplusapi.com/v1",
+        "apiKey": "${BYTEPLUS_API_KEY}",
+        "models": [
+          "byteplus/chat",
+          "byteplus/sentiment"
+        ]
+      },
+      {
+        "name": "SambaNova",
+        "type": "openai",
+        "baseUrl": "https://api.sambanova.ai/v1",
+        "apiKey": "${SAMBANOVA_API_KEY}",
+        "models": ["qwen-2.5-72b", "qwen-2.5-coder"]
+      },
+      {
+        "name": "NVIDIA",
+        "type": "openai",
+        "baseUrl": "https://integrate.api.nvidia.com/v1",
+        "apiKey": "${NVIDIA_API_KEY}",
+        "models": ["nemotron-3-nano", "nemotron-4bag"]
+      },
+      {
+        "name": "MistralAI",
+        "type": "openai",
+        "baseUrl": "https://api.mistral.ai/v1",
+        "apiKey": "${MISTRAL_API_KEY}",
+        "models": ["codestral-22b", "mistral-medium"]
+      },
+
+      {
+        "name": "OllamaLocal",
+        "type": "openai",
+        "baseUrl": "${OLLAMA_HOST}",
+        "apiKey": "",
+        "models": [
+          "deepseek-coder",
+          "qwen2.5-coder",
+          "llama3.1",
+          "phi4"
+        ]
+      },
+
+      {
+        "name": "AlibabaCloud",
+        "disabled": true,
+        "reason": "Billing not activated",
+        "type": "openai",
+        "baseUrl": "https://dashscope.aliyuncs.com/api/v1/services/aigc",
+        "apiKey": "${ALIBABA_API_KEY}",
+        "models": [
+          "qwen-max",
+          "deepseek-r1-long"
+        ]
+      }
+    ]
+  },
+
+  "__roo_code_providers__": {
+    "roo.providers": [
+      { "ref": "OpenRouter" },
+      { "ref": "Groq" },
+      { "ref": "GoogleAI" },
+      { "ref": "AzureOpenAI" },
+      { "ref": "BytePlus" },
+      { "ref": "SambaNova" },
+      { "ref": "NVIDIA" },
+      { "ref": "MistralAI" },
+      { "ref": "OllamaLocal" }
+    ]
+  },
+
+  "__cascade_routing__": {
+    "rules": {
+      "architecture": "Claude Sonnet 4.6 (via OpenRouter)",
+      "codegen-large": "Groq LLaMA 3.3 70B",
+      "complex-algorithms": "DeepSeek R1 (OpenRouter)",
+      "ui-fixes": "Gemini 2.5 Flash",
+      "sentiment": "BytePlus sentiment",
+      "offline": "Ollama deepseek-coder",
+      "fallback": "Qwen3-72B"
+    }
+  },
+
+  "__apex_agent_to_model__": {
+    "DR_ZARA": "Claude Sonnet 4.6",
+    "PROF_KWAME": "GPT-4o (Azure)",
+    "DR_AMARA": "DeepSeek R1",
+    "DR_LIN": "Qwen 3 72B",
+    "DR_YUKI": "Gemini 2.5 Pro",
+    "DR_JABARI": "BytePlus NLP",
+    "ENGR_MARCUS": "LLaMA 3.3 70B (Groq)",
+    "DR_PRIYA": "GPT-4 Turbo (Azure)",
+    "DR_SIPHO": "Qwen2.5 Coder",
+    "ENGR_FATIMA": "Gemini 2.5 Flash",
+    "DR_SARA": "Mistral Codestral",
+    "ENGR_CHIOMA": "NVIDIA Nemotron (UI creativity)"
+  }
+}
