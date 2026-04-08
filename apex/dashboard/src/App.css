@@ -18,6 +18,28 @@
 .apex-app {
   background-color: var(--apex-deep);
   min-height: 100vh;
+}
+
+/* Live Ticker Styles */
+.live-ticker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875rem;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  margin-top: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 600px;
+}
+
+.live-ticker:hover {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.5);
+}
   color: white;
   font-family: 'DM Sans', sans-serif;
   margin: 0;

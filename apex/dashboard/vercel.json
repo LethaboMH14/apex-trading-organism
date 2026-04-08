@@ -1,0 +1,18 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "installCommand": "npm install",
+  "devCommand": "npm run dev",
+  "env": {
+    "API_BASE": "http://localhost:3001",
+    "WS_URL": "ws://localhost:3002"
+  },
+  "functions": {},
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "http://localhost:3001/api/$1"
+    }
+  ]
+}

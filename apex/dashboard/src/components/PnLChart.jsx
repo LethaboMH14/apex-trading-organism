@@ -201,23 +201,43 @@ const PnLChart = ({
     // Generate mock data if no trades provided
     let processedTrades = trades;
     if (trades.length === 0) {
-      // Generate mock cumulative PnL data
-      const mockData = [];
-      let runningPnL = 0;
+      // Fixed chart data - no randomness
+      const chartData = [
+        {time:'00:00',pnl:0,sharpe:0.0},
+        {time:'01:00',pnl:23.40,sharpe:0.3},
+        {time:'02:00',pnl:45.20,sharpe:0.6},
+        {time:'03:00',pnl:38.90,sharpe:0.5},
+        {time:'04:00',pnl:67.30,sharpe:0.8},
+        {time:'05:00',pnl:89.10,sharpe:1.0},
+        {time:'06:00',pnl:124.50,sharpe:1.2},
+        {time:'07:00',pnl:118.20,sharpe:1.1},
+        {time:'08:00',pnl:156.80,sharpe:1.3},
+        {time:'09:00',pnl:201.30,sharpe:1.5},
+        {time:'10:00',pnl:187.60,sharpe:1.4},
+        {time:'11:00',pnl:234.90,sharpe:1.6},
+        {time:'12:00',pnl:278.40,sharpe:1.7},
+        {time:'13:00',pnl:312.10,sharpe:1.8},
+        {time:'14:00',pnl:298.70,sharpe:1.75},
+        {time:'15:00',pnl:356.20,sharpe:1.8},
+        {time:'16:00',pnl:401.80,sharpe:1.82},
+        {time:'17:00',pnl:445.30,sharpe:1.83},
+        {time:'18:00',pnl:423.90,sharpe:1.81},
+        {time:'19:00',pnl:478.60,sharpe:1.83},
+        {time:'20:00',pnl:502.10,sharpe:1.84},
+        {time:'21:00',pnl:489.40,sharpe:1.83},
+        {time:'22:00',pnl:516.70,sharpe:1.84},
+        {time:'23:00',pnl:531.90,sharpe:1.84}
+      ];
+      
       const now = new Date();
-      
-      for (let i = 24; i >= 0; i--) {
-        const timestamp = new Date(now.getTime() - i * 60 * 60 * 1000);
-        runningPnL += (Math.random() - 0.3) * 100; // Random PnL changes
-        
-        mockData.push({
+      processedTrades = chartData.map((data, i) => {
+        const timestamp = new Date(now.getTime() - (23 - i) * 60 * 60 * 1000);
+        return {
           timestamp: timestamp.toISOString(),
-          pnl: (Math.random() - 0.3) * 100,
-          sharpe: Math.random() * 2 - 0.5
-        });
-      }
-      
-      processedTrades = mockData;
+          pnl: data.pnl,
+          sharpe: data.sharpe
+        };
+      });
     }
 
     // Filter by timeframe

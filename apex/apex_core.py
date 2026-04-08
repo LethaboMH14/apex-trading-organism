@@ -28,8 +28,12 @@ from dotenv import load_dotenv, find_dotenv
 from crewai import Agent, Crew, Task, Process
 from crewai.tools import BaseTool
 
-# APEX imports (these will be built in subsequent phases)
+# APEX imports (real modules)
 from apex_llm_router import get_router, LLMProvider
+from apex_data import DataPipeline
+from apex_sentiment import SentimentPipeline
+from apex_risk import RiskGate
+from apex_identity import APEXIdentity
 
 # Configure logging
 logging.basicConfig(
