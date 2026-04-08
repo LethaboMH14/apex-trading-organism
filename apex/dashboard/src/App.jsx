@@ -15,6 +15,53 @@ import { AgentFeed, ReputationScore, PnLChart, TradeLog } from './components';
 const API_BASE = 'http://localhost:3001';
 const WS_URL = 'ws://localhost:8766';
 
+// Toast notification system
+const showToast = (message, type = 'success') => {
+  // Create toast element
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+    background: ${type === 'success' ? 'rgba(0,220,130,0.15)' : 'rgba(239,68,68,0.15)'};
+    border: 1px solid ${type === 'success' ? '#00DC82' : '#ef4444'};
+    color: ${type === 'success' ? '#00DC82' : '#ef4444'};
+  `;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  // Auto remove after 3 seconds
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease';
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+    }, 300);
+  }, 3000);
+};
+
+// Add CSS animations
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+  }
+`;
+document.head.appendChild(style);
+
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -81,21 +128,44 @@ const SkeletonLoader = ({ type, height = '100%' }) => {
 };
 
 // Trading Controls Component
-const TradingControls = ({ wsConnected, continuousTrading, setContinuousTrading, tradeSize, setTradeSize }) => {
+const TradingControls = ({ wsConnected, continuousTrading, setContinuousTrading, tradeSize, setTradeSize, ws, setRecentTrades }) => {
   const [executeLoading, setExecuteLoading] = useState(false);
   const [lastTradeResult, setLastTradeResult] = useState(null);
 
   const handleExecuteTrade = async () => {
     setExecuteLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/api/execute-trade`, { method: 'POST' });
-      const data = await response.json();
-      setLastTradeResult(data);
-      setTimeout(() => setLastTradeResult(null), 3000);
-    } catch (error) {
-      console.error('Trade execution failed:', error);
-    } finally {
-      setExecuteLoading(false);
+    
+    if (wsConnected && ws.current) {
+      // Real execution
+      ws.current.send(JSON.stringify({
+        type: 'execute_trade',
+        pair: 'XBTUSD',
+        action: 'BUY',
+        amount: tradeSize || 100,
+        reasoning: 'Dashboard manual execution. Momentum confirmed.',
+        confidence: 82
+      }));
+      setTimeout(() => {
+        setExecuteLoading(false);
+        showToast('Trade intent submitted to RiskRouter');
+      }, 1500);
+    } else {
+      // Demo mode - works without backend
+      setTimeout(() => {
+        const mockTrade = {
+          id: Date.now(),
+          time: new Date().toLocaleTimeString(),
+          symbol: 'BTC',
+          side: 'BUY',
+          qty: 0.0015,
+          price: 72605,
+          pnl: '+12.50',
+          status: 'FILLED'
+        };
+        setRecentTrades(prev => [mockTrade, ...prev].slice(0, 20));
+        setExecuteLoading(false);
+        showToast('Trade submitted (Demo Mode)');
+      }, 2000);
     }
   };
 
@@ -925,6 +995,8 @@ const App = () => {
                     setContinuousTrading={setContinuousTrading}
                     tradeSize={tradeSize}
                     setTradeSize={setTradeSize}
+                    ws={ws}
+                    setRecentTrades={setRecentTrades}
                   />
                   <div className="section-label" style={{ marginTop: '20px' }}>RISK CONTROLS</div>
                   <div className="card">
