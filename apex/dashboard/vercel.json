@@ -8,7 +8,6 @@
     "API_BASE": "http://localhost:3001",
     "WS_URL": "ws://localhost:3002"
   },
-  "functions": {},
   "rewrites": [
     {
       "source": "/api/(.*)",

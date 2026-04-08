@@ -214,7 +214,8 @@ cd apex/dashboard && npm run dev
 #### **STEP 6 - GitHub + Deployment:**
 - **github_push_commands.txt:** Ready for manual repo creation
 - **vercel.json:** Deployment configuration created
-- **Vercel deployment:** User cancelled (commands ready for later)
+- **GitHub repo URL:** https://github.com/LethaboMH14/apex-trading-agent
+- **Vercel deployment URL:** https://apex-trading-organism.vercel.app
 
 #### **STEP 7 - Submission Text:**
 - **SUBMISSION.md:** Complete hackathon submission written

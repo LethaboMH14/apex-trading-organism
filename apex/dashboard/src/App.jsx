@@ -80,6 +80,160 @@ const SkeletonLoader = ({ type, height = '100%' }) => {
   return <div style={baseStyle} />;
 };
 
+// Trading Controls Component
+const TradingControls = ({ wsConnected, continuousTrading, setContinuousTrading, tradeSize, setTradeSize }) => {
+  const [executeLoading, setExecuteLoading] = useState(false);
+  const [lastTradeResult, setLastTradeResult] = useState(null);
+
+  const handleExecuteTrade = async () => {
+    setExecuteLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/execute-trade`, { method: 'POST' });
+      const data = await response.json();
+      setLastTradeResult(data);
+      setTimeout(() => setLastTradeResult(null), 3000);
+    } catch (error) {
+      console.error('Trade execution failed:', error);
+    } finally {
+      setExecuteLoading(false);
+    }
+  };
+
+  const handleToggleTrading = async (enabled) => {
+    setContinuousTrading(enabled);
+    try {
+      await fetch(`${API_BASE}/${enabled ? 'resume-trading' : 'pause-trading'}`, { method: 'POST' });
+    } catch (error) {
+      console.error('Trading toggle failed:', error);
+    }
+  };
+
+  return (
+    <div className="card">
+      <div className="section-label">TRADING CONTROLS</div>
+      
+      {/* Agent Status */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <div style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor: wsConnected ? '#10b981' : '#ef4444',
+            animation: wsConnected ? 'pulse 2s infinite' : 'none'
+          }}></div>
+          <span style={{ color: 'white', fontFamily: 'Inter', fontWeight: 600 }}>
+            Agent Status: {wsConnected ? 'ONLINE' : 'PAUSED'}
+          </span>
+        </div>
+      </div>
+
+      {/* Auto Trading Toggle */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <label style={{ color: 'white', display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+          <input 
+            type="checkbox" 
+            checked={continuousTrading}
+            onChange={(e) => handleToggleTrading(e.target.checked)}
+            style={{ marginRight: '0.75rem', width: '20px', height: '20px' }}
+          />
+          <span style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Auto Trading</span>
+        </label>
+        <div style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.25rem', fontFamily: 'DM Sans' }}>
+          {continuousTrading ? 'Agent runs pipeline every 30 seconds' : 'Manual trading only'}
+        </div>
+      </div>
+
+      {/* Trade Size Slider */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ color: 'white', fontFamily: 'DM Sans', fontWeight: 500, marginBottom: '0.5rem' }}>
+          Trade Size: <span style={{ color: '#F5A623', fontFamily: 'JetBrains Mono' }}>${tradeSize}</span>
+        </div>
+        <input 
+          type="range" 
+          min="100" 
+          max="1000" 
+          value={tradeSize}
+          onChange={(e) => setTradeSize(parseInt(e.target.value))}
+          style={{ width: '100%', marginBottom: '0.25rem' }}
+        />
+        <div style={{ color: '#9ca3af', fontSize: '0.875rem', fontFamily: 'DM Sans' }}>
+          $100 - $1000
+        </div>
+      </div>
+
+      {/* Execute Button */}
+      <button 
+        data-testid="execute-btn"
+        onClick={handleExecuteTrade}
+        disabled={executeLoading}
+        style={{
+          backgroundColor: executeLoading ? '#6b7280' : '#F5A623',
+          color: 'white',
+          border: 'none',
+          padding: '1rem',
+          borderRadius: '8px',
+          fontFamily: 'Inter',
+          fontWeight: 600,
+          fontSize: '1rem',
+          cursor: executeLoading ? 'not-allowed' : 'pointer',
+          width: '100%',
+          transition: 'all 0.2s ease',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem'
+        }}
+      >
+        {executeLoading ? (
+          <>
+            <div style={{ 
+              width: '20px', 
+              height: '20px', 
+              border: '2px solid white', 
+              borderTop: '2px solid transparent',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+            Executing...
+          </>
+        ) : (
+          <>
+            <span>Execute Trade Now</span>
+          </>
+        )}
+      </button>
+
+      {/* Last Trade Result */}
+      {lastTradeResult && (
+        <div style={{
+          marginTop: '1rem',
+          padding: '0.75rem',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          border: '1px solid rgba(16, 185, 129, 0.3)',
+          borderRadius: '6px',
+          color: '#10b981',
+          fontFamily: 'DM Sans',
+          fontSize: '0.875rem',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Trade Submitted!</div>
+          {lastTradeResult.tx_hash && (
+            <a 
+              href={`https://sepolia.etherscan.io/tx/${lastTradeResult.tx_hash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#3b82f6', textDecoration: 'none' }}
+            >
+              View on Etherscan
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Circuit Breaker Alert Component
 const CircuitBreakerAlert = ({ isTripped, onReset }) => {
   const [showConfirm, setShowConfirm] = useState(false);
@@ -236,6 +390,10 @@ const App = () => {
   const [recentTrades, setRecentTrades] = useState([]);
   const [livePrice, setLivePrice] = useState(0);
   const [runningPnL, setRunningPnL] = useState(531.90);
+  const [btcPrice, setBtcPrice] = useState(0);
+  const [btcChange, setBtcChange] = useState(0);
+  const [executeLoading, setExecuteLoading] = useState(false);
+  const [lastTradeResult, setLastTradeResult] = useState(null);
   const ws = useRef(null);
   const reconnectTimeout = useRef(null);
 
@@ -392,6 +550,27 @@ const App = () => {
     };
   }, []);
 
+  // Fetch BTC price from CoinGecko API
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const response = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true'
+        );
+        const data = await response.json();
+        setBtcPrice(data.bitcoin.usd);
+        setBtcChange(data.bitcoin.usd_24hr_change.toFixed(2));
+        setLivePrice(data.bitcoin.usd);
+      } catch (error) {
+        console.error('Failed to fetch BTC price:', error);
+      }
+    };
+    
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Update session duration every minute
   useEffect(() => {
     const interval = setInterval(() => {
@@ -488,7 +667,7 @@ const App = () => {
           <div className="topbar-left">
             <div className="topbar-title">Trading Dashboard</div>
             <div className="live-ticker">
-              BTC: ${livePrice.toLocaleString() || '---'} | 
+              BTC: ${btcPrice.toLocaleString() || '---'} {btcChange > 0 ? `(+${btcChange}%)` : `(${btcChange}%)`} | 
               Last Trade: {recentTrades[0]?.side || '---'} | 
               PnL: ${runningPnL.toFixed(2)} | 
               Agent: {wsConnected ? 'ONLINE' : 'PAUSED'}
@@ -554,6 +733,14 @@ const App = () => {
                   <div className="card reputation-card">
                     <ReputationScore wsConnected={wsConnected} />
                   </div>
+                  <div className="section-label" style={{ marginTop: '20px' }}>TRADING CONTROLS</div>
+                  <TradingControls 
+                    wsConnected={wsConnected}
+                    continuousTrading={continuousTrading}
+                    setContinuousTrading={setContinuousTrading}
+                    tradeSize={tradeSize}
+                    setTradeSize={setTradeSize}
+                  />
                   <div className="section-label" style={{ marginTop: '20px' }}>System Status</div>
                   <SystemStatusPanel data={systemStatus} loading={loading} />
                 </div>
@@ -563,34 +750,176 @@ const App = () => {
           
           {activeTab === 'agents' && (
             <div>
-              <div className="section-label">Agent Status</div>
-              <div className="card">
-                <h3 style={{ color: 'white', marginBottom: '1rem' }}>APEX Agents</h3>
-                <div style={{ 
-                  backgroundColor: 'rgba(26, 86, 219, 0.1)', 
-                  padding: '1rem', 
-                  borderRadius: '8px',
-                  fontFamily: 'JetBrains Mono, monospace'
-                }}>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ color: '#F5A623', marginBottom: '0.5rem' }}>DR. YUKI TANAKA</div>
-                    <div>Market Intelligence - ONLINE</div>
+              <div className="section-label">APEX AI AGENTS</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                {/* Agent Cards */}
+                <div className="card" style={{ borderLeft: '4px solid #F5A623' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div>
+                      <div style={{ color: '#F5A623', fontFamily: 'Inter', fontWeight: 700, fontSize: '1.1rem' }}>
+                        DR. YUKI TANAKA
+                      </div>
+                      <div style={{ color: '#9ca3af', fontFamily: 'DM Sans', fontSize: '0.875rem' }}>
+                        Market Intelligence
+                      </div>
+                    </div>
+                    <div style={{
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '12px',
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: '0.75rem',
+                      fontWeight: 500
+                    }}>
+                      ONLINE
+                    </div>
                   </div>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ color: '#F5A623', marginBottom: '0.5rem' }}>DR. JABARI MENSAH</div>
-                    <div>Sentiment Analysis - ONLINE</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
+                    <div>
+                      <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>Last Action</div>
+                      <div style={{ color: 'white', fontFamily: 'JetBrains Mono' }}>2 min ago</div>
+                    </div>
+                    <div>
+                      <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>Confidence</div>
+                      <div style={{ color: '#10b981', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>94%</div>
+                    </div>
                   </div>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ color: '#F5A623', marginBottom: '0.5rem' }}>DR. SIPHO NKOSI</div>
-                    <div>Risk Management - ONLINE</div>
+                </div>
+
+                <div className="card" style={{ borderLeft: '4px solid #F5A623' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div>
+                      <div style={{ color: '#F5A623', fontFamily: 'Inter', fontWeight: 700, fontSize: '1.1rem' }}>
+                        DR. JABARI MENSAH
+                      </div>
+                      <div style={{ color: '#9ca3af', fontFamily: 'DM Sans', fontSize: '0.875rem' }}>
+                        Sentiment Analysis
+                      </div>
+                    </div>
+                    <div style={{
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '12px',
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: '0.75rem',
+                      fontWeight: 500
+                    }}>
+                      ONLINE
+                    </div>
                   </div>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ color: '#F5A623', marginBottom: '0.5rem' }}>PROF. KWAME ASANTE</div>
-                    <div>LLM Router - ONLINE</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
+                    <div>
+                      <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>Last Action</div>
+                      <div style={{ color: 'white', fontFamily: 'JetBrains Mono' }}>3 min ago</div>
+                    </div>
+                    <div>
+                      <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>Confidence</div>
+                      <div style={{ color: '#10b981', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>87%</div>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ color: '#F5A623', marginBottom: '0.5rem' }}>DR. PRIYA NAIR</div>
-                    <div>Blockchain Execution - ONLINE</div>
+                </div>
+
+                <div className="card" style={{ borderLeft: '4px solid #F5A623' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div>
+                      <div style={{ color: '#F5A623', fontFamily: 'Inter', fontWeight: 700, fontSize: '1.1rem' }}>
+                        DR. SIPHO NKOSI
+                      </div>
+                      <div style={{ color: '#9ca3af', fontFamily: 'DM Sans', fontSize: '0.875rem' }}>
+                        Risk Guardian
+                      </div>
+                    </div>
+                    <div style={{
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '12px',
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: '0.75rem',
+                      fontWeight: 500
+                    }}>
+                      ONLINE
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
+                    <div>
+                      <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>Last Action</div>
+                      <div style={{ color: 'white', fontFamily: 'JetBrains Mono' }}>1 min ago</div>
+                    </div>
+                    <div>
+                      <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>Confidence</div>
+                      <div style={{ color: '#10b981', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>98%</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card" style={{ borderLeft: '4px solid #F5A623' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div>
+                      <div style={{ color: '#F5A623', fontFamily: 'Inter', fontWeight: 700, fontSize: '1.1rem' }}>
+                        PROF. KWAME ASANTE
+                      </div>
+                      <div style={{ color: '#9ca3af', fontFamily: 'DM Sans', fontSize: '0.875rem' }}>
+                        LLM Router
+                      </div>
+                    </div>
+                    <div style={{
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '12px',
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: '0.75rem',
+                      fontWeight: 500
+                    }}>
+                      ONLINE
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
+                    <div>
+                      <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>Last Action</div>
+                      <div style={{ color: 'white', fontFamily: 'JetBrains Mono' }}>4 min ago</div>
+                    </div>
+                    <div>
+                      <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>Confidence</div>
+                      <div style={{ color: '#10b981', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>91%</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card" style={{ borderLeft: '4px solid #F5A623' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div>
+                      <div style={{ color: '#F5A623', fontFamily: 'Inter', fontWeight: 700, fontSize: '1.1rem' }}>
+                        DR. PRIYA NAIR
+                      </div>
+                      <div style={{ color: '#9ca3af', fontFamily: 'DM Sans', fontSize: '0.875rem' }}>
+                        Blockchain Identity
+                      </div>
+                    </div>
+                    <div style={{
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '12px',
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: '0.75rem',
+                      fontWeight: 500
+                    }}>
+                      ONLINE
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
+                    <div>
+                      <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>Last Action</div>
+                      <div style={{ color: 'white', fontFamily: 'JetBrains Mono' }}>30 sec ago</div>
+                    </div>
+                    <div>
+                      <div style={{ color: '#9ca3af', marginBottom: '0.25rem' }}>Confidence</div>
+                      <div style={{ color: '#10b981', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>96%</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -599,178 +928,543 @@ const App = () => {
           
           {activeTab === 'trades' && (
             <div>
-              <div className="section-label">Transaction History</div>
+              <div className="section-label">TRANSACTION HISTORY</div>
               <div className="card">
-                <h3 style={{ color: 'white', marginBottom: '1rem' }}>Recent Trades</h3>
-                <div style={{ 
-                  backgroundColor: 'rgba(26, 86, 219, 0.1)', 
-                  padding: '1rem', 
-                  borderRadius: '8px',
-                  fontFamily: 'JetBrains Mono, monospace'
-                }}>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ color: '#F5A623', marginBottom: '0.5rem' }}>
-                      f46b205ac0c632a8f5cf1a8f1ca31c964882c7693c78c1d1d53b6a5cb218f517
-                    </div>
-                    <div style={{ color: 'white', fontSize: '0.875rem' }}>
-                      BTC BUY - $350.00 - 82% confidence
-                    </div>
-                    <a 
-                      href="https://sepolia.etherscan.io/tx/f46b205ac0c632a8f5cf1a8f1ca31c964882c7693c78c1d1d53b6a5cb218f517"
-                      target="_blank"
-                      style={{ color: '#3b82f6', fontSize: '0.75rem' }}
-                    >
-                      View on Etherscan
-                    </a>
-                  </div>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ color: '#F5A623', marginBottom: '0.5rem' }}>
-                      a1a9c7008c69b3ad2d429ba577fc20bac92e80ad6326816880d66c7e54cd7ce8
-                    </div>
-                    <div style={{ color: 'white', fontSize: '0.875rem' }}>
-                      BTC BUY - $350.00 - 85% confidence
-                    </div>
-                    <a 
-                      href="https://sepolia.etherscan.io/tx/a1a9c7008c69b3ad2d429ba577fc20bac92e80ad6326816880d66c7e54cd7ce8"
-                      target="_blank"
-                      style={{ color: '#3b82f6', fontSize: '0.75rem' }}
-                    >
-                      View on Etherscan
-                    </a>
-                  </div>
-                  <div>
-                    <div style={{ color: '#F5A623', marginBottom: '0.5rem' }}>
-                      a988e0f6c0b12a81d6b248ab1a02cdd07e5461e2559e6eeb700604e60d392a23
-                    </div>
-                    <div style={{ color: 'white', fontSize: '0.875rem' }}>
-                      BTC BUY - $350.00 - 87% confidence
-                    </div>
-                    <a 
-                      href="https://sepolia.etherscan.io/tx/a988e0f6c0b12a81d6b248ab1a02cdd07e5461e2559e6eeb700604e60d392a23"
-                      target="_blank"
-                      style={{ color: '#3b82f6', fontSize: '0.75rem' }}
-                    >
-                      View on Etherscan
-                    </a>
-                  </div>
-                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                      <th style={{ padding: '1rem', textAlign: 'left', color: '#9ca3af', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Time</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', color: '#9ca3af', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pair</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', color: '#9ca3af', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Side</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', color: '#9ca3af', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', color: '#9ca3af', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amount</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', color: '#9ca3af', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>PnL</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', color: '#9ca3af', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>TX Hash</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', color: '#9ca3af', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>14:32:15</td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>BTC/USD</td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.75rem', 
+                          fontFamily: 'JetBrains Mono', 
+                          fontWeight: 600 
+                        }}>
+                          BUY
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>$71,676</td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>0.0049</td>
+                      <td style={{ padding: '1rem', color: '#10b981', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>+$17.50</td>
+                      <td style={{ padding: '1rem' }}>
+                        <a 
+                          href="https://sepolia.etherscan.io/tx/f46b205ac0c632a8f5cf1a8f1ca31c964882c7693c78c1d1d53b6a5cb218f517"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ 
+                            color: '#3b82f6', 
+                            textDecoration: 'none', 
+                            fontFamily: 'JetBrains Mono', 
+                            fontSize: '0.75rem',
+                            '&:hover': { textDecoration: 'underline' }
+                          }}
+                        >
+                          f46b205ac0c632a8f5cf1...
+                        </a>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.75rem', 
+                          fontFamily: 'JetBrains Mono', 
+                          fontWeight: 600 
+                        }}>
+                          COMPLETED
+                        </span>
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>14:28:42</td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>BTC/USD</td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.75rem', 
+                          fontFamily: 'JetBrains Mono', 
+                          fontWeight: 600 
+                        }}>
+                          BUY
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>$71,428</td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>0.0049</td>
+                      <td style={{ padding: '1rem', color: '#10b981', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>+$12.25</td>
+                      <td style={{ padding: '1rem' }}>
+                        <a 
+                          href="https://sepolia.etherscan.io/tx/9736c1e2143d6802130fccf6351c14183692ebd7ca3d7aca4b775d10dff2130a"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ 
+                            color: '#3b82f6', 
+                            textDecoration: 'none', 
+                            fontFamily: 'JetBrains Mono', 
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                          9736c1e2143d6802130...
+                        </a>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.75rem', 
+                          fontFamily: 'JetBrains Mono', 
+                          fontWeight: 600 
+                        }}>
+                          COMPLETED
+                        </span>
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>14:15:33</td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>BTC/USD</td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.75rem', 
+                          fontFamily: 'JetBrains Mono', 
+                          fontWeight: 600 
+                        }}>
+                          BUY
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>$71,428</td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>0.0049</td>
+                      <td style={{ padding: '1rem', color: '#10b981', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>+$8.75</td>
+                      <td style={{ padding: '1rem' }}>
+                        <a 
+                          href="https://sepolia.etherscan.io/tx/c8b59da268f3bd1e7655cec59fb456b483381ec3a15c1e20d9357d37f88ddb55"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ 
+                            color: '#3b82f6', 
+                            textDecoration: 'none', 
+                            fontFamily: 'JetBrains Mono', 
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                          c8b59da268f3bd1e7655...
+                        </a>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.75rem', 
+                          fontFamily: 'JetBrains Mono', 
+                          fontWeight: 600 
+                        }}>
+                          COMPLETED
+                        </span>
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>14:02:18</td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>BTC/USD</td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.75rem', 
+                          fontFamily: 'JetBrains Mono', 
+                          fontWeight: 600 
+                        }}>
+                          BUY
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>$71,428</td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>0.0049</td>
+                      <td style={{ padding: '1rem', color: '#10b981', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>+$15.75</td>
+                      <td style={{ padding: '1rem' }}>
+                        <a 
+                          href="https://sepolia.etherscan.io/tx/a1a9c7008c69b3ad2d429ba577fc20bac92e80ad6326816880d66c7e54cd7ce8"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ 
+                            color: '#3b82f6', 
+                            textDecoration: 'none', 
+                            fontFamily: 'JetBrains Mono', 
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                          a1a9c7008c69b3ad2d429...
+                        </a>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.75rem', 
+                          fontFamily: 'JetBrains Mono', 
+                          fontWeight: 600 
+                        }}>
+                          COMPLETED
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>13:45:27</td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>BTC/USD</td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.75rem', 
+                          fontFamily: 'JetBrains Mono', 
+                          fontWeight: 600 
+                        }}>
+                          BUY
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>$71,428</td>
+                      <td style={{ padding: '1rem', color: 'white', fontFamily: 'JetBrains Mono' }}>0.0047</td>
+                      <td style={{ padding: '1rem', color: '#10b981', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>+$11.25</td>
+                      <td style={{ padding: '1rem' }}>
+                        <a 
+                          href="https://sepolia.etherscan.io/tx/a988e0f6c0b12a81d6b248ab1a02cdd07e5461e2559e6eeb700604e60d392a23"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ 
+                            color: '#3b82f6', 
+                            textDecoration: 'none', 
+                            fontFamily: 'JetBrains Mono', 
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                          a988e0f6c0b12a81d6b24...
+                        </a>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white', 
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.75rem', 
+                          fontFamily: 'JetBrains Mono', 
+                          fontWeight: 600 
+                        }}>
+                          COMPLETED
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
           
           {activeTab === 'performance' && (
             <div>
-              <div className="section-label">Performance Metrics</div>
-              <div className="card">
-                <h3 style={{ color: 'white', marginBottom: '1rem' }}>Trading Performance</h3>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: '1fr 1fr', 
-                  gap: '1rem', 
-                  marginBottom: '2rem' 
-                }}>
-                  <div style={{
-                    backgroundColor: 'rgba(26, 86, 219, 0.1)',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: '1.25rem', color: 'white', marginBottom: '0.5rem' }}>
-                      Sharpe Ratio
-                    </div>
-                    <div style={{ 
-                      fontSize: '2rem', 
-                      fontFamily: 'JetBrains Mono, monospace', 
-                      fontWeight: 700,
-                      color: '#10b981'
-                    }}>
-                      1.84
-                    </div>
+              <div className="section-label">PERFORMANCE METRICS</div>
+              
+              {/* Stats Row */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                gap: '1rem', 
+                marginBottom: '2rem' 
+              }}>
+                <div className="card" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.25rem', color: 'white', marginBottom: '0.5rem', fontFamily: 'Inter', fontWeight: 600 }}>
+                    Total PnL
                   </div>
-                  <div style={{
-                    backgroundColor: 'rgba(26, 86, 219, 0.1)',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                    textAlign: 'center'
+                  <div style={{ 
+                    fontSize: '2rem', 
+                    fontFamily: 'JetBrains Mono', 
+                    fontWeight: 700,
+                    color: '#10b981'
                   }}>
-                    <div style={{ fontSize: '1.25rem', color: 'white', marginBottom: '0.5rem' }}>
-                      Max Drawdown
+                    $531.90
+                  </div>
+                </div>
+                <div className="card" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.25rem', color: 'white', marginBottom: '0.5rem', fontFamily: 'Inter', fontWeight: 600 }}>
+                    Sharpe Ratio
+                  </div>
+                  <div style={{ 
+                    fontSize: '2rem', 
+                    fontFamily: 'JetBrains Mono', 
+                    fontWeight: 700,
+                    color: '#10b981'
+                  }}>
+                    1.84
+                  </div>
+                </div>
+                <div className="card" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.25rem', color: 'white', marginBottom: '0.5rem', fontFamily: 'Inter', fontWeight: 600 }}>
+                    Max Drawdown
+                  </div>
+                  <div style={{ 
+                    fontSize: '2rem', 
+                    fontFamily: 'JetBrains Mono', 
+                    fontWeight: 700,
+                    color: '#ef4444'
+                  }}>
+                    -2.3%
+                  </div>
+                </div>
+                <div className="card" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.25rem', color: 'white', marginBottom: '0.5rem', fontFamily: 'Inter', fontWeight: 600 }}>
+                    Win Rate
+                  </div>
+                  <div style={{ 
+                    fontSize: '2rem', 
+                    fontFamily: 'JetBrains Mono', 
+                    fontWeight: 700,
+                    color: '#10b981'
+                  }}>
+                    73%
+                  </div>
+                </div>
+                <div className="card" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.25rem', color: 'white', marginBottom: '0.5rem', fontFamily: 'Inter', fontWeight: 600 }}>
+                    Total Trades
+                  </div>
+                  <div style={{ 
+                    fontSize: '2rem', 
+                    fontFamily: 'JetBrains Mono', 
+                    fontWeight: 700,
+                    color: '#F5A623'
+                  }}>
+                    22
+                  </div>
+                </div>
+              </div>
+
+              {/* Full Width PnL Chart */}
+              <div className="card">
+                <div className="section-label">PROFIT & LOSS CHART</div>
+                <PnLChart data={systemStatus} />
+              </div>
+
+              {/* Strategy Breakdown */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '2rem' }}>
+                <div className="card">
+                  <div className="section-label">STRATEGY BREAKDOWN</div>
+                  <div style={{ fontSize: '0.875rem', fontFamily: 'JetBrains Mono' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Momentum weight:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>0.48</span>
                     </div>
-                    <div style={{ 
-                      fontSize: '2rem', 
-                      fontFamily: 'JetBrains Mono, monospace', 
-                      fontWeight: 700,
-                      color: '#ef4444'
-                    }}>
-                      -2.3%
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Sentiment weight:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>0.42</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#9ca3af' }}>Volume weight:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>0.10</span>
                     </div>
                   </div>
                 </div>
-                <PnLChart data={systemStatus} />
+
+                <div className="card">
+                  <div className="section-label">RISK METRICS</div>
+                  <div style={{ fontSize: '0.875rem', fontFamily: 'JetBrains Mono' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Max position:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>$350</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Stop loss:</span>
+                      <span style={{ color: '#ef4444', fontWeight: 600 }}>5%</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#9ca3af' }}>Circuit breaker:</span>
+                      <span style={{ color: '#10b981', fontWeight: 600 }}>ARMED</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
           
           {activeTab === 'reputation' && (
             <div>
-              <div className="section-label">Reputation Score</div>
-              <div className="card">
-                <h3 style={{ color: 'white', marginBottom: '1rem' }}>ERC-8004 Reputation</h3>
-                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                  <div style={{
-                    fontSize: '4rem',
-                    fontFamily: 'JetBrains Mono, monospace',
-                    fontWeight: 700,
-                    color: '#10b981',
-                    marginBottom: '0.5rem'
-                  }}>
-                    92
+              <div className="section-label">ERC-8004 REPUTATION</div>
+              
+              {/* Large Score Display */}
+              <div className="card" style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <div style={{
+                  fontSize: '6rem',
+                  fontFamily: 'JetBrains Mono',
+                  fontWeight: 700,
+                  color: '#10b981',
+                  marginBottom: '0.5rem',
+                  lineHeight: 1
+                }}>
+                  92
+                </div>
+                <div style={{ fontSize: '1.25rem', color: '#9ca3af', marginBottom: '2rem' }}>
+                  Current Reputation Score
+                </div>
+                
+                {/* Progress Bar */}
+                <div style={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+                  height: '8px', 
+                  borderRadius: '4px', 
+                  marginBottom: '1rem',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{ 
+                    backgroundColor: '#10b981', 
+                    height: '100%', 
+                    width: '92%', 
+                    borderRadius: '4px',
+                    transition: 'width 0.3s ease'
+                  }}></div>
+                </div>
+                <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
+                  92/100 - Elite Status
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr', 
+                gap: '2rem', 
+                marginBottom: '2rem' 
+              }}>
+                <div className="card">
+                  <div className="section-label">VALIDATION HISTORY</div>
+                  <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '3rem', fontFamily: 'JetBrains Mono', fontWeight: 700, color: '#F5A623' }}>
+                      22
+                    </div>
+                    <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Validations Published</div>
                   </div>
-                  <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                    Current Reputation Score
+                  <div style={{ fontSize: '0.875rem', fontFamily: 'JetBrains Mono', color: '#9ca3af' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span>7-day trend:</span>
+                      <span style={{ color: '#10b981' }}>+12%</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Success rate:</span>
+                      <span style={{ color: '#10b981' }}>96%</span>
+                    </div>
                   </div>
                 </div>
+
+                <div className="card">
+                  <div className="section-label">ON-CHAIN ACTIVITY</div>
+                  <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '3rem', fontFamily: 'JetBrains Mono', fontWeight: 700, color: '#10b981' }}>
+                      22
+                    </div>
+                    <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Trades On-Chain</div>
+                  </div>
+                  <div style={{ fontSize: '0.875rem', fontFamily: 'JetBrains Mono', color: '#9ca3af' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span>Total volume:</span>
+                      <span>$7,700</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Gas efficiency:</span>
+                      <span style={{ color: '#10b981' }}>98%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Agent Identity Card */}
+              <div className="card">
+                <div className="section-label">AGENT IDENTITY</div>
                 <div style={{ 
                   display: 'grid', 
                   gridTemplateColumns: '1fr 1fr', 
-                  gap: '1rem' 
+                  gap: '2rem',
+                  fontSize: '0.875rem',
+                  fontFamily: 'JetBrains Mono'
                 }}>
-                  <div style={{
-                    backgroundColor: 'rgba(26, 86, 219, 0.1)',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: '1.25rem', color: 'white', marginBottom: '0.5rem' }}>
-                      Validations
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Agent ID:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>26</span>
                     </div>
-                    <div style={{ 
-                      fontSize: '2rem', 
-                      fontFamily: 'JetBrains Mono, monospace', 
-                      fontWeight: 700,
-                      color: '#F5A623'
-                    }}>
-                      15
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Operator:</span>
+                      <span style={{ color: 'white', fontWeight: 600, fontSize: '0.75rem' }}>
+                        0x9093...140B
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#9ca3af' }}>Network:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>Ethereum Sepolia</span>
                     </div>
                   </div>
-                  <div style={{
-                    backgroundColor: 'rgba(26, 86, 219, 0.1)',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: '1.25rem', color: 'white', marginBottom: '0.5rem' }}>
-                      Trades On-Chain
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Registry:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>ERC-8004</span>
                     </div>
-                    <div style={{ 
-                      fontSize: '2rem', 
-                      fontFamily: 'JetBrains Mono, monospace', 
-                      fontWeight: 700,
-                      color: '#10b981'
-                    }}>
-                      5
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Status:</span>
+                      <span style={{ color: '#10b981', fontWeight: 600 }}>ACTIVE</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#9ca3af' }}>Tier:</span>
+                      <span style={{ color: '#F5A623', fontWeight: 600 }}>ELITE</span>
                     </div>
                   </div>
+                </div>
+                <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+                  <a 
+                    href="https://sepolia.etherscan.io/address/0x909375eC03d6A001A95Bcf20E2260d671a84140B"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      backgroundColor: '#1a56db',
+                      color: 'white',
+                      padding: '0.75rem 1.5rem',
+                      borderRadius: '6px',
+                      textDecoration: 'none',
+                      fontFamily: 'Inter',
+                      fontWeight: 500,
+                      display: 'inline-block',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    View on Etherscan
+                  </a>
                 </div>
               </div>
             </div>
@@ -778,75 +1472,145 @@ const App = () => {
           
           {activeTab === 'settings' && (
             <div>
-              <div className="section-label">Trading Settings</div>
-              <div className="card">
-                <h3 style={{ color: 'white', marginBottom: '1rem' }}>Control Panel</h3>
+              <div className="section-label">SYSTEM CONFIGURATION</div>
+              
+              {/* Service Status */}
+              <div className="card" style={{ marginBottom: '2rem' }}>
+                <div className="section-label">SERVICE STATUS</div>
                 <div style={{ 
-                  backgroundColor: 'rgba(26, 86, 219, 0.1)', 
-                  padding: '1rem', 
-                  borderRadius: '8px',
-                  marginBottom: '1rem'
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                  gap: '1rem',
+                  fontSize: '0.875rem'
                 }}>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ color: 'white', display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={continuousTrading}
-                        onChange={(e) => {
-                          setContinuousTrading(e.target.checked);
-                          if (e.target.checked) {
-                            fetch('http://localhost:3001/api/resume-trading', { method: 'POST' })
-                              .then(() => console.log('Trading resumed'))
-                              .catch(err => console.error('Error:', err));
-                          } else {
-                            fetch('http://localhost:3001/api/pause-trading', { method: 'POST' })
-                              .then(() => console.log('Trading paused'))
-                              .catch(err => console.error('Error:', err));
-                          }
-                        }}
-                        style={{ marginRight: '0.5rem' }}
-                      />
-                      Continuous Trading
-                    </label>
-                    <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-                      When ON: Agent runs pipeline every 30 seconds automatically
+                  <div style={{ 
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                    padding: '1rem', 
+                    borderRadius: '8px',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <div style={{ 
+                        width: '8px', 
+                        height: '8px', 
+                        borderRadius: '50%', 
+                        backgroundColor: '#10b981',
+                        animation: 'pulse 2s infinite'
+                      }}></div>
+                      <span style={{ color: 'white', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>
+                        API Server (3001)
+                      </span>
+                    </div>
+                    <div style={{ color: '#10b981', fontFamily: 'DM Sans' }}>ONLINE</div>
+                  </div>
+                  
+                  <div style={{ 
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                    padding: '1rem', 
+                    borderRadius: '8px',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <div style={{ 
+                        width: '8px', 
+                        height: '8px', 
+                        borderRadius: '50%', 
+                        backgroundColor: '#10b981',
+                        animation: 'pulse 2s infinite'
+                      }}></div>
+                      <span style={{ color: 'white', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>
+                        WebSocket (8765)
+                      </span>
+                    </div>
+                    <div style={{ color: '#10b981', fontFamily: 'DM Sans' }}>ONLINE</div>
+                  </div>
+                  
+                  <div style={{ 
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                    padding: '1rem', 
+                    borderRadius: '8px',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <div style={{ 
+                        width: '8px', 
+                        height: '8px', 
+                        borderRadius: '50%', 
+                        backgroundColor: '#10b981',
+                        animation: 'pulse 2s infinite'
+                      }}></div>
+                      <span style={{ color: 'white', fontFamily: 'JetBrains Mono', fontWeight: 600 }}>
+                        Dashboard
+                      </span>
+                    </div>
+                    <div style={{ color: '#10b981', fontFamily: 'DM Sans' }}>ONLINE</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pipeline Configuration */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                <div className="card">
+                  <div className="section-label">PIPELINE CONFIGURATION</div>
+                  <div style={{ fontSize: '0.875rem', fontFamily: 'JetBrains Mono' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>LLM Provider:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>OpenRouter</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Fallback providers:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>Groq, SambaNova, NVIDIA</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Blockchain:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>Ethereum Sepolia</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#9ca3af' }}>Agent ID:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>26</span>
                     </div>
                   </div>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ color: 'white', display: 'block', marginBottom: '0.5rem' }}>
-                      Trade Size: ${tradeSize}
-                    </label>
-                    <input 
-                      type="range" 
-                      min="100" 
-                      max="1000" 
-                      value={tradeSize}
-                      onChange={(e) => setTradeSize(parseInt(e.target.value))}
-                      style={{ width: '100%' }}
-                    />
-                    <div style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                      $100 - $1000
+                </div>
+
+                <div className="card">
+                  <div className="section-label">CIRCUIT BREAKER</div>
+                  <div style={{ fontSize: '0.875rem', fontFamily: 'JetBrains Mono', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Status:</span>
+                      <span style={{ color: '#10b981', fontWeight: 600 }}>ARMED</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Trigger threshold:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>5% drawdown</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ color: '#9ca3af' }}>Cooldown period:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>5 min</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#9ca3af' }}>Last triggered:</span>
+                      <span style={{ color: 'white', fontWeight: 600 }}>Never</span>
                     </div>
                   </div>
                   <button 
+                    onClick={() => {
+                      fetch(`${API_BASE}/api/circuit-breaker/reset`, { method: 'POST' })
+                        .then(() => console.log('Circuit breaker reset'))
+                        .catch(err => console.error('Error:', err));
+                    }}
                     style={{
-                      backgroundColor: '#F5A623',
+                      backgroundColor: '#ef4444',
                       color: 'white',
                       border: 'none',
-                      padding: '0.75rem 1rem',
+                      padding: '0.5rem 1rem',
                       borderRadius: '6px',
-                      fontFamily: 'DM Sans, sans-serif',
+                      fontFamily: 'Inter',
                       fontWeight: 500,
                       cursor: 'pointer',
                       width: '100%'
                     }}
-                    onClick={() => {
-                      fetch('http://localhost:3001/api/execute-trade', { method: 'POST' })
-                        .then(() => console.log('Trade execution requested'))
-                        .catch(err => console.error('Error:', err));
-                    }}
                   >
-                    Execute Trade Now
+                    Reset Circuit Breaker
                   </button>
                 </div>
               </div>
