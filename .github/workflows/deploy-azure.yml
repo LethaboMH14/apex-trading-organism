@@ -58,5 +58,5 @@ jobs:
             --name apex-risk-api \
             --resource-group precision-pad-rg \
             --image apexregistry14.azurecr.io/apex:${{ github.sha }} \
-            --command "python" \
-            --args "-m uvicorn api.risk_api:app --host 0.0.0.0 --port 3002"
+            --command "uvicorn" \
+            --args "api.risk_api:app" "--host" "0.0.0.0" "--port" "3002"
