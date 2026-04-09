@@ -41,40 +41,36 @@ jobs:
 
       - name: Deploy apex-ws Container App
         run: |
-          az containerapp create \
+          az containerapp update \
             --name apex-ws \
             --resource-group precision-pad-rg \
-            --environment apex-env \
             --image apexregistry14.azurecr.io/apex:${{ github.sha }} \
-            --target-port 8766 \
-            --ingress external \
             --registry-server apexregistry14.azurecr.io \
             --registry-username ${{ env.ACR_USERNAME }} \
             --registry-password ${{ env.ACR_PASSWORD }} \
-            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}"
+            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
+            --command "python" --args "apex_ws.py"
 
       - name: Deploy apex-indexer Container App
         run: |
-          az containerapp create \
+          az containerapp update \
             --name apex-indexer \
             --resource-group precision-pad-rg \
-            --environment apex-env \
             --image apexregistry14.azurecr.io/apex:${{ github.sha }} \
             --registry-server apexregistry14.azurecr.io \
             --registry-username ${{ env.ACR_USERNAME }} \
             --registry-password ${{ env.ACR_PASSWORD }} \
-            --env-vars AZURE_COSMOS_CONNECTION_STRING="${{ secrets.AZURE_COSMOS_CONNECTION_STRING }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}"
+            --env-vars AZURE_COSMOS_CONNECTION_STRING="${{ secrets.AZURE_COSMOS_CONNECTION_STRING }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
+            --command "python" --args "apex_indexer.py"
 
       - name: Deploy apex-risk-api Container App
         run: |
-          az containerapp create \
+          az containerapp update \
             --name apex-risk-api \
             --resource-group precision-pad-rg \
-            --environment apex-env \
             --image apexregistry14.azurecr.io/apex:${{ github.sha }} \
-            --target-port 3002 \
-            --ingress external \
             --registry-server apexregistry14.azurecr.io \
             --registry-username ${{ env.ACR_USERNAME }} \
             --registry-password ${{ env.ACR_PASSWORD }} \
-            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}"
+            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
+            --command "python" --args "-m uvicorn api.risk_api:app --host 0.0.0.0 --port 3002"
