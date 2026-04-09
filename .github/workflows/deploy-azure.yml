@@ -34,22 +34,14 @@ jobs:
           docker build -t apexregistry14.azurecr.io/apex:${{ github.sha }} .
           docker push apexregistry14.azurecr.io/apex:${{ github.sha }}
       
-      - name: Get ACR credentials
-        run: |
-          echo "ACR_USERNAME=$(az acr credential show --name apexregistry14 --query username -o tsv)" >> $GITHUB_ENV
-          echo "ACR_PASSWORD=$(az acr credential show --name apexregistry14 --query passwords[0].value -o tsv)" >> $GITHUB_ENV
-
       - name: Deploy apex-ws Container App
         run: |
           az containerapp update \
             --name apex-ws \
             --resource-group precision-pad-rg \
             --image apexregistry14.azurecr.io/apex:${{ github.sha }} \
-            --registry-server apexregistry14.azurecr.io \
-            --registry-username ${{ env.ACR_USERNAME }} \
-            --registry-password ${{ env.ACR_PASSWORD }} \
-            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
-            --command "python" --args "apex_ws.py"
+            --command "python" \
+            --args "apex_ws.py"
 
       - name: Deploy apex-indexer Container App
         run: |
@@ -57,11 +49,8 @@ jobs:
             --name apex-indexer \
             --resource-group precision-pad-rg \
             --image apexregistry14.azurecr.io/apex:${{ github.sha }} \
-            --registry-server apexregistry14.azurecr.io \
-            --registry-username ${{ env.ACR_USERNAME }} \
-            --registry-password ${{ env.ACR_PASSWORD }} \
-            --env-vars AZURE_COSMOS_CONNECTION_STRING="${{ secrets.AZURE_COSMOS_CONNECTION_STRING }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
-            --command "python" --args "apex_indexer.py"
+            --command "python" \
+            --args "apex_indexer.py"
 
       - name: Deploy apex-risk-api Container App
         run: |
@@ -69,8 +58,5 @@ jobs:
             --name apex-risk-api \
             --resource-group precision-pad-rg \
             --image apexregistry14.azurecr.io/apex:${{ github.sha }} \
-            --registry-server apexregistry14.azurecr.io \
-            --registry-username ${{ env.ACR_USERNAME }} \
-            --registry-password ${{ env.ACR_PASSWORD }} \
-            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
-            --command "python" --args "-m uvicorn api.risk_api:app --host 0.0.0.0 --port 3002"
+            --command "python" \
+            --args "-m uvicorn api.risk_api:app --host 0.0.0.0 --port 3002"
