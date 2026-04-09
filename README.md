@@ -68,6 +68,7 @@ News/NLP   → DR. JABARI ↗         ↓
 | Strategy v4 | 1.31 | +11.0% | Overnight learning cycle — full rebalance |
 | Strategy v5 | 1.47 | +12.2% | DR. AMARA autonomous rewrite — sentiment confirmed alpha |
 
+<<<<<<< HEAD
 ## Recent Integration Work (April 2026)
 **HOLD Prevention & Enhanced LLM Prompts:**
 - Made HOLD very restrictive - only valid if circuit breaker tripped, drawdown >4%, and volatility 3x above average
@@ -122,6 +123,8 @@ News/NLP   → DR. JABARI ↗         ↓
 - Fixed missing os import in apex_learn.py
 - Fixed missing get_win_rate import in apex_live.py
 
+=======
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
 ## Paper Trading Safety
 APEX_PAPER_MODE=true is enforced. No real funds are at risk.
 The system executes simulated trades and publishes reasoning on-chain.
@@ -150,7 +153,10 @@ python apex/register_apex.py
 # 3. Start the system
 python apex/apex_core.py
 node apex/api/server.js
+<<<<<<< HEAD
 cd apex/api && python risk_api.py
+=======
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
 cd apex/dashboard/dashboard-wireframe && npm run dev
 
 # Environment Variables Required

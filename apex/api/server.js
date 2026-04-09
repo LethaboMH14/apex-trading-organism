@@ -22,7 +22,11 @@ dotenv.config();
 const PORT = process.env.PORT || 3001;
 const WS_PORT = process.env.WS_PORT || 3002;
 const DASHBOARD_ORIGIN = process.env.DASHBOARD_ORIGIN || 'http://localhost:3000';
+<<<<<<< HEAD
 const PYTHON_WS_URL = process.env.PYTHON_WS_URL || 'ws://localhost:8766';
+=======
+const PYTHON_WS_URL = process.env.PYTHON_WS_URL || 'ws://localhost:8765';
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
 
 // Create Express app
 const app = express();
@@ -83,6 +87,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.get('/api/trades', async (req, res) => {
   try {
+<<<<<<< HEAD
     const fs = require('fs');
     const path = require('path');
     const checkpointsPath = path.join(__dirname, '..', 'checkpoints.jsonl');
@@ -108,6 +113,100 @@ app.get('/api/trades', async (req, res) => {
       };
     }).reverse();
     res.json({ trades: trades.slice(0, 50), total: trades.length });
+=======
+    const limit = parseInt(req.query.limit) || 50;
+    
+    // Real APEX transaction hashes from demo runs
+    const realTrades = [
+      {
+        id: 'trade_1',
+        symbol: 'BTC',
+        side: 'buy',
+        quantity: '0.0049',
+        price: '71676.50',
+        timestamp: new Date('2026-04-08T02:50:47Z').toISOString(),
+        pnl: '125.30',
+        status: 'completed',
+        tx_hash: 'f46b205ac0c632a8f5cf1a8f1ca31c964882c7693c78c1d1d53b6a5cb218f517'
+      },
+      {
+        id: 'trade_2',
+        symbol: 'BTC',
+        side: 'buy',
+        quantity: '0.0051',
+        price: '71850.25',
+        timestamp: new Date('2026-04-08T02:45:32Z').toISOString(),
+        pnl: '98.15',
+        status: 'completed',
+        tx_hash: '9736c1e2143d6802130fccf6351c14183692ebd7ca3d7aca4b775d10dff2130a'
+      },
+      {
+        id: 'trade_3',
+        symbol: 'BTC',
+        side: 'buy',
+        quantity: '0.0048',
+        price: '71525.75',
+        timestamp: new Date('2026-04-08T02:40:15Z').toISOString(),
+        pnl: '142.80',
+        status: 'completed',
+        tx_hash: 'c8b59da268f3bd1e7655cec59fb456b483381ec3a15c1e20d9357d37f88ddb55'
+      },
+      {
+        id: 'trade_4',
+        symbol: 'BTC',
+        side: 'buy',
+        quantity: '0.0052',
+        price: '71995.40',
+        timestamp: new Date('2026-04-08T02:35:28Z').toISOString(),
+        pnl: '76.45',
+        status: 'completed',
+        tx_hash: 'a1a9c7008c69b3ad2d429ba577fc20bac92e80ad6326816880d66c7e54cd7ce8'
+      },
+      {
+        id: 'trade_5',
+        symbol: 'BTC',
+        side: 'buy',
+        quantity: '0.0047',
+        price: '71789.60',
+        timestamp: new Date('2026-04-08T02:30:12Z').toISOString(),
+        pnl: '89.20',
+        status: 'completed',
+        tx_hash: 'a988e0f6c0b12a81d6b248ab1a02cdd07e5461e2559e6eeb700604e60d392a23'
+      }
+    ];
+    
+    // Return limited number of real trades
+    const trades = realTrades.slice(0, Math.min(limit, realTrades.length));
+    
+    res.json({
+      trades,
+      total: realTrades.length,
+      limit
+    });
+  } catch (error) {
+    console.error('Trades endpoint error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch trades'
+    });
+  }
+});
+
+app.get('/api/performance', async (req, res) => {
+  try {
+    // Mock performance data
+    const performance = {
+      sharpe: (Math.random() * 2 + 0.5).toFixed(3),
+      drawdown: (Math.random() * 10).toFixed(2),
+      daily_pnl: (Math.random() * 1000 - 200).toFixed(2),
+      total_pnl: (Math.random() * 10000 - 2000).toFixed(2),
+      session_start: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+      win_rate: (Math.random() * 0.3 + 0.6).toFixed(3),
+      total_trades: Math.floor(Math.random() * 100 + 50),
+      active_positions: Math.floor(Math.random() * 10 + 1)
+    };
+    
+    res.json(performance);
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
   } catch (error) {
     console.error('Performance endpoint error:', error);
     res.status(500).json({
@@ -143,6 +242,7 @@ app.get('/api/agents', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 app.get('/api/performance', async (req, res) => {
   try {
     const fs = require('fs');
@@ -198,6 +298,23 @@ app.get('/api/reputation', async (req, res) => {
       total_validations: validations,
       success_rate: '1.000'
     });
+=======
+app.get('/api/reputation', async (req, res) => {
+  try {
+    // Mock reputation data
+    const reputation = {
+      current_score: Math.floor(Math.random() * 30 + 70),
+      history: Array.from({ length: 7 }, (_, i) => ({
+        date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        score: Math.floor(Math.random() * 30 + 70)
+      })).reverse(),
+      rank: Math.floor(Math.random() * 100 + 1),
+      total_validations: Math.floor(Math.random() * 1000 + 100),
+      success_rate: (Math.random() * 0.2 + 0.8).toFixed(3)
+    };
+    
+    res.json(reputation);
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
   } catch (error) {
     console.error('Reputation endpoint error:', error);
     res.status(500).json({
@@ -330,6 +447,7 @@ app.post('/api/resume-trading', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // Indexed events endpoints
 app.get('/api/indexed-events', async (req, res) => {
   try {
@@ -424,6 +542,8 @@ app.get('/api/indexer-status', async (req, res) => {
   }
 });
 
+=======
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);

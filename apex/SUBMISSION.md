@@ -64,6 +64,7 @@ Tx examples:
 - https://sepolia.etherscan.io/tx/f46b205ac0c632a8f5cf1a8f1ca31c964882c7693c78c1d1d53b6a5cb218f517
 - https://sepolia.etherscan.io/tx/c8b59da268f3bd1e7655cec59fb456b483381ec3a15c1e20d9357d37f88ddb55
 
+<<<<<<< HEAD
 ## Trust & Validation Model
 APEX implements a complete ERC-8004 trust chain:
 Every trade generates a cryptographic validation 
@@ -100,6 +101,8 @@ APEX leverages enterprise-grade Azure services for production reliability and sc
 
 This cloud-native architecture ensures APEX operates with 99.9% uptime, automatic scaling during high-volume periods, and enterprise-grade security suitable for institutional deployment.
 
+=======
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
 CATEGORIES: Finance, ERC-8004, Investment, Agent Builder
 TECHNOLOGIES: CrewAI, LangChain, OpenAI, DeepSeek R1, 
 Anthropic Claude, Groq, Google Gemini, web3.py

@@ -29,7 +29,11 @@ from pydantic import BaseModel, Field, validator
 
 # APEX imports
 from dotenv import load_dotenv, find_dotenv
+<<<<<<< HEAD
 from apex_llm_router import LLMRouter, LLMProvider
+=======
+from apex_llm_router import ask_jabari
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
 
 # Configure logging
 logging.basicConfig(
@@ -71,6 +75,7 @@ class NewsArticle(BaseModel):
     symbol_mentions: List[str] = Field(default_factory=list, description="Mentioned symbols")
 
 
+<<<<<<< HEAD
 class GroqSentimentAnalyzer:
     """
     Groq Sentiment Analyzer - Uses Groq LLM for sentiment analysis.
@@ -87,6 +92,102 @@ class GroqSentimentAnalyzer:
     async def analyze_sentiment(self, text: str) -> Dict[str, Any]:
         """
         Analyze sentiment of a text using Groq.
+=======
+class BytePlusNLPClient:
+    """
+    BytePlus NLP Client - ModelArk API for advanced sentiment analysis.
+    
+    Interfaces with BytePlus ModelArk API to perform sentiment analysis, 
+    narrative detection, and text classification. Includes rate limiting 
+    and comprehensive error handling.
+    """
+    
+    def __init__(self):
+        """Initialize BytePlus NLP client."""
+        self.api_key = os.getenv("BYTEPLUS_API_KEY", "")
+        self.base_url = os.getenv("BYTEPLUS_API_URL", "https://ark.ap-southeast.bytepluses.com/api/v3")
+        
+        # Rate limiting
+        self.rate_limiter = {
+            "requests": 0,
+            "window_start": time.time(),
+            "max_requests_per_second": 5
+        }
+        
+        # HTTP session
+        self.session = None
+        
+        logger.info("🧠 BytePlus NLP client initialized")
+        logger.info(f"🌐 Base URL: {self.base_url}")
+        logger.info(f"🔑 API Key configured: {'✅' if self.api_key else '❌'}")
+    
+    async def _make_request(self, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Make authenticated request to BytePlus API with rate limiting.
+        
+        Args:
+            endpoint: API endpoint to call
+            data: Optional request payload
+            
+        Returns:
+            API response dictionary
+        """
+        # Rate limiting check
+        current_time = time.time()
+        window_duration = current_time - self.rate_limiter["window_start"]
+        
+        if window_duration >= 1.0:
+            self.rate_limiter["requests"] = 0
+            self.rate_limiter["window_start"] = current_time
+        
+        if self.rate_limiter["requests"] >= self.rate_limiter["max_requests_per_second"]:
+            wait_time = 1.0 - window_duration
+            logger.warning(f"⏱️ Rate limit reached, waiting {wait_time:.2f}s")
+            await asyncio.sleep(wait_time)
+            return self._make_request(endpoint, data)
+        
+        self.rate_limiter["requests"] += 1
+        
+        if not self.session:
+            self.session = aiohttp.ClientSession()
+        
+        url = urljoin(self.base_url, endpoint)
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            if data:
+                async with self.session.post(url, headers=headers, json=data) as response:
+                    if response.status == 200:
+                        response_data = await response.json()
+                        logger.debug(f"📨 BytePlus API response: {len(str(response_data))} bytes")
+                        return response_data
+                    else:
+                        logger.error(f"❌ BytePlus API error: {response.status} - {await response.text()}")
+                        return {"error": f"HTTP {response.status}", "message": await response.text()}
+            else:
+                async with self.session.get(url, headers=headers) as response:
+                    if response.status == 200:
+                        response_data = await response.json()
+                        logger.debug(f"📨 BytePlus API response: {len(str(response_data))} bytes")
+                        return response_data
+                    else:
+                        logger.error(f"❌ BytePlus API error: {response.status} - {await response.text()}")
+                        return {"error": f"HTTP {response.status}", "message": await response.text()}
+                    
+        except asyncio.TimeoutError:
+            logger.error("❌ BytePlus API request timeout")
+            return {"error": "timeout", "message": "Request timeout"}
+        except Exception as e:
+            logger.error(f"❌ BytePlus API request failed: {e}")
+            return {"error": "request_failed", "message": str(e)}
+    
+    async def analyze_sentiment(self, text: str) -> Dict[str, Any]:
+        """
+        Analyze sentiment of a text.
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
         
         Args:
             text: Text to analyze
@@ -96,6 +197,7 @@ class GroqSentimentAnalyzer:
         """
         logger.debug(f"📝 Analyzing sentiment: {len(text)} characters")
         
+<<<<<<< HEAD
         prompt = f"""Analyze the sentiment of this text and return a JSON response with:
 - score: a number from 0 to 100 (0 = very bearish, 50 = neutral, 100 = very bullish)
 - label: "bearish", "neutral", or "bullish"
@@ -131,11 +233,40 @@ Return only valid JSON, no other text."""
             "score": 50.0,
             "label": "neutral",
             "confidence": 0.5
+=======
+        data = {
+            "text": text,
+            "model": "sentiment-analysis-v1"
+        }
+        
+        response = await self._make_request("nlp/analyze", data)
+        
+        if "error" in response:
+            # Return default sentiment on error
+            return {
+                "score": 0.0,
+                "label": "neutral",
+                "confidence": 0.0,
+                "error": response["error"]
+            }
+        
+        # Parse successful response
+        result = response.get("result", {})
+        return {
+            "score": float(result.get("sentiment_score", 0.0)),
+            "label": result.get("sentiment_label", "neutral"),
+            "confidence": float(result.get("confidence", 0.0)),
+            "model": result.get("model", "sentiment-analysis-v1")
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
         }
     
     async def batch_analyze(self, texts: List[str]) -> List[Dict[str, Any]]:
         """
+<<<<<<< HEAD
         Analyze sentiment for multiple texts in batch using Groq.
+=======
+        Analyze sentiment for multiple texts in batch.
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
         
         Args:
             texts: List of texts to analyze
@@ -143,6 +274,7 @@ Return only valid JSON, no other text."""
         Returns:
             List of sentiment analysis results
         """
+<<<<<<< HEAD
         logger.info(f"📊 Batch analyzing {len(texts)} texts with Groq")
         
         results = []
@@ -157,13 +289,56 @@ Return only valid JSON, no other text."""
                 "label": result["label"],
                 "confidence": result["confidence"]
             })
+=======
+        logger.info(f"📊 Batch analyzing {len(texts)} texts")
+        
+        # Process in batches of 50 (BytePlus limit)
+        batch_size = 50
+        results = []
+        
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            logger.debug(f"📦 Processing batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
+            
+            data = {
+                "texts": batch,
+                "model": "sentiment-analysis-v1"
+            }
+            
+            response = await self._make_request("nlp/batch_analyze", data)
+            
+            if "error" in response:
+                # Add error results for each text in batch
+                for text in batch:
+                    results.append({
+                        "text": text,
+                        "score": 0.0,
+                        "label": "neutral",
+                        "confidence": 0.0,
+                        "error": response["error"]
+                    })
+            else:
+                # Parse batch results
+                batch_results = response.get("results", [])
+                for text, result in zip(batch, batch_results):
+                    results.append({
+                        "text": text,
+                        "score": float(result.get("sentiment_score", 0.0)),
+                        "label": result.get("sentiment_label", "neutral"),
+                        "confidence": float(result.get("confidence", 0.0))
+                    })
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
         
         logger.info(f"✅ Batch analysis complete: {len(results)} results")
         return results
     
     async def classify_narrative(self, texts: List[str]) -> NarrativeAnalysis:
         """
+<<<<<<< HEAD
         Classify narrative themes in texts using Groq.
+=======
+        Classify narrative themes in texts.
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
         
         Args:
             texts: List of texts to analyze
@@ -173,6 +348,7 @@ Return only valid JSON, no other text."""
         """
         logger.info(f"🔍 Classifying narrative themes in {len(texts)} texts")
         
+<<<<<<< HEAD
         combined_text = "\n\n".join(texts[:5])  # Limit to 5 texts to avoid token limits
         
         prompt = f"""Analyze these news articles and identify key narrative themes. Return JSON with:
@@ -216,6 +392,35 @@ Return only valid JSON, no other text."""
             themes=["general"],
             confidence=0.5,
             risk_level="medium",
+=======
+        data = {
+            "texts": texts,
+            "model": "narrative-classifier-v1"
+        }
+        
+        response = await self._make_request("nlp/classify_narrative", data)
+        
+        if "error" in response:
+            # Return default analysis on error
+            return NarrativeAnalysis(
+                themes=["general"],
+                confidence=0.0,
+                risk_level="unknown",
+                timestamp=datetime.now()
+            )
+        
+        # Parse successful response
+        result = response.get("result", {})
+        themes = result.get("themes", [])
+        risk_indicators = [theme for theme in themes if "risk" in theme.lower()]
+        
+        risk_level = "high" if risk_indicators else "medium" if len(themes) > 3 else "low"
+        
+        return NarrativeAnalysis(
+            themes=themes,
+            confidence=float(result.get("confidence", 0.0)),
+            risk_level=risk_level,
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
             timestamp=datetime.now()
         )
 
@@ -339,6 +544,7 @@ class CryptoNewsAggregator:
         
         # Filter by symbol and time
         symbol_articles = []
+<<<<<<< HEAD
         
         # Map trading symbols to common news keywords
         symbol_keywords = {
@@ -359,6 +565,14 @@ class CryptoNewsAggregator:
                     article.symbol_mentions.append(symbol)
                     symbol_articles.append(article)
                     break  # Only add article once even if it matches multiple keywords
+=======
+        for article in all_articles:
+            # Check if article mentions the symbol (case-insensitive)
+            symbol_pattern = re.compile(r'\b' + re.escape(symbol) + r'\b', re.IGNORECASE)
+            if symbol_pattern.search(article.title + ' ' + article.summary):
+                article.symbol_mentions.append(symbol)
+                symbol_articles.append(article)
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
         
         # Remove duplicates by URL
         seen_urls = set()
@@ -415,17 +629,28 @@ class SentimentPipeline:
     """
     Sentiment Pipeline - Orchestrates sentiment analysis for APEX.
     
+<<<<<<< HEAD
     Combines crypto news aggregation with Groq LLM analysis to provide 
+=======
+    Combines crypto news aggregation with BytePlus NLP analysis to provide 
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
     comprehensive market sentiment intelligence. Scores and stores results for 
     trading decisions and risk assessment.
     """
     
     def __init__(self):
         """Initialize sentiment pipeline."""
+<<<<<<< HEAD
         self.nlp_client = GroqSentimentAnalyzer()
         self.news_aggregator = CryptoNewsAggregator()
         
         logger.info("🧠 Sentiment Pipeline initialized with Groq")
+=======
+        self.nlp_client = BytePlusNLPClient()
+        self.news_aggregator = CryptoNewsAggregator()
+        
+        logger.info("🧠 Sentiment Pipeline initialized")
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
     
     async def score_symbol(self, symbol: str) -> SentimentResult:
         """

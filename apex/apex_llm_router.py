@@ -102,6 +102,7 @@ AGENT_MODEL_MAP = {
     },
     "PROF_KWAME": {
         "primary": ModelConfig(
+<<<<<<< HEAD
             provider=LLMProvider.GROQ,
             model_id="llama-3.3-70b-versatile",
             max_tokens=4096,
@@ -110,12 +111,27 @@ AGENT_MODEL_MAP = {
             cost_tier="free"
         ),
         "fallback": ModelConfig(
+=======
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
             provider=LLMProvider.AZURE_OPENAI,
             model_id="gpt-4o",
             max_tokens=4096,
             temperature=0.5,
+<<<<<<< HEAD
             timeout_seconds=20,
             cost_tier="moderate"
+=======
+            timeout_seconds=30,
+            cost_tier="moderate"
+        ),
+        "fallback": ModelConfig(
+            provider=LLMProvider.OPENROUTER,
+            model_id="qwen/qwen3-72b",
+            max_tokens=4096,
+            temperature=0.5,
+            timeout_seconds=30,
+            cost_tier="cheap"
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
         )
     },
     "DR_AMARA": {

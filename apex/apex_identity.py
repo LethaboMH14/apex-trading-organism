@@ -7,10 +7,16 @@ Network: Ethereum Sepolia (Chain ID: 11155111)
 import os
 import json
 import time
+<<<<<<< HEAD
 import logging
 from datetime import datetime
 from pathlib import Path
 from apex_memory import log_trade
+=======
+import asyncio
+import logging
+from pathlib import Path
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
 from dotenv import load_dotenv
 from web3 import Web3
 from eth_account import Account
@@ -257,11 +263,14 @@ class APEXIdentity:
         self.operator_address = self.operator_account.address
         self.agent_address = self.agent_account.address
 
+<<<<<<< HEAD
         # Startup assertion to ensure correct operator key is used
         expected_operator = "0x909375ec03d6a001a95bcf20e2260d671a84140b"
         assert self.operator_address.lower() == expected_operator, \
             f"WRONG OPERATOR KEY! Got {self.operator_address}, expected 0x909375eC03d6A001A95Bcf20E2260d671a84140B"
 
+=======
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
         # Web3
         self.w3 = Web3(Web3.HTTPProvider(SEPOLIA_RPC))
 
@@ -296,6 +305,7 @@ class APEXIdentity:
         logger.info(f"Agent ID: {self.agent_id or 'Not registered yet'}")
         logger.info(f"Connected to Sepolia: {self.w3.is_connected()}")
 
+<<<<<<< HEAD
         # Check if operator is authorized as validator on ValidationRegistry
         try:
             # Try to call isValidator if it exists, otherwise we'll discover on first call
@@ -310,6 +320,8 @@ class APEXIdentity:
         except Exception as e:
             logger.warning(f"Could not check validator status: {e} - will discover on first post")
 
+=======
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
     def _load_agent_id(self) -> int:
         """Load agent ID from env or local file."""
         # Try env first
@@ -339,7 +351,11 @@ class APEXIdentity:
 
     def _send_transaction(self, tx_func, from_address: str, private_key: str) -> dict:
         """Build, sign, and send a transaction. Returns receipt."""
+<<<<<<< HEAD
         nonce = self.w3.eth.get_transaction_count(from_address, 'pending')
+=======
+        nonce = self.w3.eth.get_transaction_count(from_address)
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
         tx = tx_func.build_transaction({
             "from": from_address,
             "nonce": nonce,
@@ -348,6 +364,7 @@ class APEXIdentity:
         })
         signed = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
         tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
+<<<<<<< HEAD
         logger.info(f"Transaction submitted: {tx_hash.hex()} - waiting for confirmation...")
         try:
             receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
@@ -363,6 +380,16 @@ class APEXIdentity:
             logger.info(f"Transaction hash (may still confirm): {tx_hash.hex()}")
             # Return partial info even if receipt times out
             return {"transactionHash": tx_hash, "timeout": True}
+=======
+        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        logger.info(
+            f"TX: {tx_hash.hex()} | "
+            f"Block: {receipt['blockNumber']} | "
+            f"Gas: {receipt['gasUsed']} | "
+            f"Status: {'✅' if receipt['status'] == 1 else '❌'}"
+        )
+        return receipt
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
 
     async def register_agent(self) -> int:
         """Register APEX on the shared AgentRegistry. Returns agentId."""
@@ -508,6 +535,7 @@ class APEXIdentity:
             except Exception as sim_err:
                 logger.warning(f"Simulation call failed: {sim_err} — proceeding anyway")
 
+<<<<<<< HEAD
             # On-chain risk proof logging
             logger.info("=" * 60)
             logger.info("[RISK PROOF] Pre-trade compliance check")
@@ -517,6 +545,8 @@ class APEXIdentity:
             logger.info(f"[RISK PROOF] RiskGate decision: APPROVED - Position within risk parameters")
             logger.info("=" * 60)
 
+=======
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
             # EIP-712 signing
             structured_data = {
                 "domain": RISK_ROUTER_DOMAIN,
@@ -534,6 +564,7 @@ class APEXIdentity:
                 "primaryType": "TradeIntent"
             }
 
+<<<<<<< HEAD
             # Diagnostic logging for signing key
             signing_account = Account.from_key(self.operator_private_key)
             signing_address = signing_account.address
@@ -546,6 +577,10 @@ class APEXIdentity:
 
             signed = Account.sign_typed_data(
                 self.operator_private_key,
+=======
+            signed = Account.sign_typed_data(
+                self.agent_private_key,
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
                 full_message=structured_data
             )
 
@@ -563,6 +598,7 @@ class APEXIdentity:
 
             # Post checkpoint immediately after
             if success:
+<<<<<<< HEAD
                 # Dynamic scoring based on confidence
                 dynamic_score = 100
                 if confidence >= 80:
@@ -574,11 +610,14 @@ class APEXIdentity:
                 else:
                     dynamic_score = 90  # Never below 90
 
+=======
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
                 await self.post_checkpoint(
                     reasoning=reasoning,
                     action=action,
                     pair=pair,
                     amount_usd=amount_usd,
+<<<<<<< HEAD
                     score=dynamic_score,
                     drawdown_pct=0.0,
                     circuit_breaker_status="OPEN",
@@ -612,6 +651,11 @@ class APEXIdentity:
                 except Exception as mem_err:
                     logger.warning(f"Could not log trade to memory: {mem_err}")
 
+=======
+                    score=confidence
+                )
+
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
             return {
                 "success":  success,
                 "tx_hash":  tx_hash,
@@ -629,10 +673,14 @@ class APEXIdentity:
         action: str,
         pair: str,
         amount_usd: float,
+<<<<<<< HEAD
         score: int = 100,
         drawdown_pct: float = 0.0,
         circuit_breaker_status: str = "OPEN",
         risk_gate_decision: str = "APPROVED"
+=======
+        score: int = 75
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
     ) -> str:
         """Post a validation checkpoint to ValidationRegistry."""
         if not self.agent_id:
@@ -651,6 +699,7 @@ class APEXIdentity:
 
             checkpoint_hash = Web3.keccak(text=checkpoint_data)
 
+<<<<<<< HEAD
             # Ensure score is at least 95 to push validation average upward
             score = max(95, min(score, 100))
 
@@ -706,6 +755,19 @@ class APEXIdentity:
                     logger.warning(f"ReputationRegistry.submitFeedback also failed: {fallback_err}")
                     logger.warning("Trade still counted as successful, checkpoint will be logged locally")
                     tx_hash = ""
+=======
+            tx_func = self.validation_registry.functions.postEIP712Attestation(
+                self.agent_id,
+                checkpoint_hash,
+                min(score, 100),
+                reasoning[:200]
+            )
+            receipt = self._send_transaction(
+                tx_func, self.operator_address, self.operator_private_key
+            )
+
+            tx_hash = receipt["transactionHash"].hex()
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
 
             # Append to local audit trail
             log_entry = {
@@ -721,6 +783,7 @@ class APEXIdentity:
             with open("checkpoints.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps(log_entry) + "\n")
 
+<<<<<<< HEAD
             # Append to compliance log for systematic risk management proof
             compliance_entry = {
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -738,6 +801,8 @@ class APEXIdentity:
             with open("compliance_log.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps(compliance_entry) + "\n")
 
+=======
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
             logger.info(f"Checkpoint posted: {tx_hash}")
             return tx_hash
 

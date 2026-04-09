@@ -61,7 +61,11 @@ const TradeRow = ({ trade, isExpanded, isFlashing, onToggle, onFlashEnd }) => {
 
   const handleChainLinkClick = () => {
     if (trade.onChainHash) {
+<<<<<<< HEAD
       window.open(`https://sepolia.etherscan.io/tx/${trade.onChainHash}`, '_blank');
+=======
+      window.open(`https://sepolia.basescan.org/tx/${trade.onChainHash}`, '_blank');
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
     }
   };
 
@@ -336,7 +340,85 @@ const TradeLog = ({ trades = [], paperMode = true, isConnected = true }) => {
     
     setDisplayTrades(limitedTrades);
     setFlashingRows(newTradeIds);
+<<<<<<< HEAD
   }, [trades]);
+=======
+  }, []);
+
+  // Mock data for demonstration (remove in production)
+  useEffect(() => {
+    if (trades.length === 0) {
+      const mockTrades = [
+        {
+          id: 'trade_001',
+          timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+          symbol: 'BTC',
+          side: 'BUY',
+          quantity: '0.5234',
+          price: '43250.50',
+          pnl: '125.75',
+          status: 'FILLED',
+          onChainHash: '0x1234567890abcdef1234567890abcdef12345678',
+          reasoning: 'Technical indicators show bullish momentum. RSI at 45, MACD crossing above signal line. Volume analysis confirms buyer interest. Risk management parameters satisfied.',
+          metadata: { strategy: 'Technical Momentum', confidence: 85 }
+        },
+        {
+          id: 'trade_002',
+          timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+          symbol: 'ETH',
+          side: 'SELL',
+          quantity: '2.1500',
+          price: '2280.75',
+          pnl: '-45.20',
+          status: 'FILLED',
+          onChainHash: '0xabcdef1234567890abcdef1234567890abcdef12',
+          reasoning: 'Sentiment analysis turning bearish for ETH. News flow negative, social media sentiment declining. Taking profits at resistance level.',
+          metadata: { strategy: 'Sentiment Reversal', confidence: 72 }
+        },
+        {
+          id: 'trade_003',
+          timestamp: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
+          symbol: 'SOL',
+          side: 'BUY',
+          quantity: '15.7500',
+          price: '98.25',
+          pnl: '67.30',
+          status: 'FILLED',
+          onChainHash: null,
+          reasoning: 'Breakout pattern detected on SOL. Volume spike confirms strength. Entry above key resistance level with stop loss below.',
+          metadata: { strategy: 'Breakout Trading', confidence: 78 }
+        },
+        {
+          id: 'trade_004',
+          timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+          symbol: 'AVAX',
+          side: 'BUY',
+          quantity: '8.5000',
+          price: '35.75',
+          pnl: '0.00',
+          status: 'PENDING',
+          onChainHash: null,
+          reasoning: 'Order placed for AVAX based on positive news flow. Partnership announcement expected. Awaiting execution.',
+          metadata: { strategy: 'News-Based Trading', confidence: 65 }
+        },
+        {
+          id: 'trade_005',
+          timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+          symbol: 'MATIC',
+          side: 'SELL',
+          quantity: '25.0000',
+          price: '0.85',
+          pnl: '12.50',
+          status: 'CANCELLED',
+          onChainHash: null,
+          reasoning: 'Order cancelled due to market conditions change. Risk parameters exceeded threshold.',
+          metadata: { strategy: 'Risk Management', confidence: 100 }
+        }
+      ];
+      setDisplayTrades(mockTrades);
+    }
+  }, []);
+>>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
 
   return (
     <div style={{
