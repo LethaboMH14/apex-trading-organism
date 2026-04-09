@@ -40,7 +40,7 @@ jobs:
             --name apex-ws \
             --resource-group precision-pad-rg \
             --image apexregistry.azurecr.io/apex:latest \
-            --environment-vars \
+            --env-vars \
               AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
               AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
               AZURE_COSMOS_CONNECTION_STRING=${{ secrets.AZURE_COSMOS_CONNECTION_STRING }} \
@@ -57,7 +57,7 @@ jobs:
             --name apex-indexer \
             --resource-group precision-pad-rg \
             --image apexregistry.azurecr.io/apex:latest \
-            --environment-vars \
+            --env-vars \
               AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
               AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
               AZURE_COSMOS_CONNECTION_STRING=${{ secrets.AZURE_COSMOS_CONNECTION_STRING }} \
@@ -73,7 +73,7 @@ jobs:
             --name apex-risk-api \
             --resource-group precision-pad-rg \
             --image apexregistry.azurecr.io/apex:latest \
-            --environment-vars \
+            --env-vars \
               AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
               AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
               AZURE_COSMOS_CONNECTION_STRING=${{ secrets.AZURE_COSMOS_CONNECTION_STRING }} \
