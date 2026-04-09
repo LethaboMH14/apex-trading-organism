@@ -7,10 +7,9 @@ Network: Ethereum Sepolia (Chain ID: 11155111)
 import os
 import json
 import time
+import asyncio
 import logging
-from datetime import datetime
 from pathlib import Path
-from apex_memory import log_trade
 from dotenv import load_dotenv
 from web3 import Web3
 from eth_account import Account
@@ -257,11 +256,6 @@ class APEXIdentity:
         self.operator_address = self.operator_account.address
         self.agent_address = self.agent_account.address
 
-        # Startup assertion to ensure correct operator key is used
-        expected_operator = "0x909375ec03d6a001a95bcf20e2260d671a84140b"
-        assert self.operator_address.lower() == expected_operator, \
-            f"WRONG OPERATOR KEY! Got {self.operator_address}, expected 0x909375eC03d6A001A95Bcf20E2260d671a84140B"
-
         # Web3
         self.w3 = Web3(Web3.HTTPProvider(SEPOLIA_RPC))
 
@@ -296,20 +290,6 @@ class APEXIdentity:
         logger.info(f"Agent ID: {self.agent_id or 'Not registered yet'}")
         logger.info(f"Connected to Sepolia: {self.w3.is_connected()}")
 
-        # Check if operator is authorized as validator on ValidationRegistry
-        try:
-            # Try to call isValidator if it exists, otherwise we'll discover on first call
-            if hasattr(self.validation_registry.functions, 'isValidator'):
-                is_validator = self.validation_registry.functions.isValidator(self.operator_address).call()
-                logger.info(f"Operator is authorized validator on ValidationRegistry: {is_validator}")
-            elif hasattr(self.validation_registry.functions, 'validators'):
-                is_validator = self.validation_registry.functions.validators(self.operator_address).call()
-                logger.info(f"Operator is authorized validator on ValidationRegistry: {is_validator}")
-            else:
-                logger.info("ValidationRegistry does not expose isValidator/validators function - will discover on first post")
-        except Exception as e:
-            logger.warning(f"Could not check validator status: {e} - will discover on first post")
-
     def _load_agent_id(self) -> int:
         """Load agent ID from env or local file."""
         # Try env first
@@ -339,7 +319,7 @@ class APEXIdentity:
 
     def _send_transaction(self, tx_func, from_address: str, private_key: str) -> dict:
         """Build, sign, and send a transaction. Returns receipt."""
-        nonce = self.w3.eth.get_transaction_count(from_address, 'pending')
+        nonce = self.w3.eth.get_transaction_count(from_address)
         tx = tx_func.build_transaction({
             "from": from_address,
             "nonce": nonce,
@@ -348,21 +328,14 @@ class APEXIdentity:
         })
         signed = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
         tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
-        logger.info(f"Transaction submitted: {tx_hash.hex()} - waiting for confirmation...")
-        try:
-            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
-            logger.info(
-                f"TX: {tx_hash.hex()} | "
-                f"Block: {receipt['blockNumber']} | "
-                f"Gas: {receipt['gasUsed']} | "
-                f"Status: {'✅' if receipt['status'] == 1 else '❌'}"
-            )
-            return receipt
-        except Exception as e:
-            logger.error(f"Transaction confirmation timeout or error: {e}")
-            logger.info(f"Transaction hash (may still confirm): {tx_hash.hex()}")
-            # Return partial info even if receipt times out
-            return {"transactionHash": tx_hash, "timeout": True}
+        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        logger.info(
+            f"TX: {tx_hash.hex()} | "
+            f"Block: {receipt['blockNumber']} | "
+            f"Gas: {receipt['gasUsed']} | "
+            f"Status: {'✅' if receipt['status'] == 1 else '❌'}"
+        )
+        return receipt
 
     async def register_agent(self) -> int:
         """Register APEX on the shared AgentRegistry. Returns agentId."""
@@ -508,15 +481,6 @@ class APEXIdentity:
             except Exception as sim_err:
                 logger.warning(f"Simulation call failed: {sim_err} — proceeding anyway")
 
-            # On-chain risk proof logging
-            logger.info("=" * 60)
-            logger.info("[RISK PROOF] Pre-trade compliance check")
-            logger.info(f"[RISK PROOF] Position size: ${amount_usd} vs $1000 cap - COMPLIANT")
-            logger.info(f"[RISK PROOF] Circuit breaker status: OPEN (not tripped)")
-            logger.info(f"[RISK PROOF] Current drawdown: 0.0% (within 5% limit)")
-            logger.info(f"[RISK PROOF] RiskGate decision: APPROVED - Position within risk parameters")
-            logger.info("=" * 60)
-
             # EIP-712 signing
             structured_data = {
                 "domain": RISK_ROUTER_DOMAIN,
@@ -535,17 +499,17 @@ class APEXIdentity:
             }
 
             # Diagnostic logging for signing key
-            signing_account = Account.from_key(self.operator_private_key)
+            signing_account = Account.from_key(self.agent_private_key)
             signing_address = signing_account.address
             expected_address = "0x909375eC03d6A001A95Bcf20E2260d671a84140B"
-            logger.info(f"[SIGNING DIAGNOSTIC] Using operator_private_key for EIP-712 signing")
+            logger.info(f"[SIGNING DIAGNOSTIC] Using agent_private_key for EIP-712 signing")
             logger.info(f"[SIGNING DIAGNOSTIC] Recovered address from signing key: {signing_address}")
             logger.info(f"[SIGNING DIAGNOSTIC] Expected whitelisted address: {expected_address}")
             logger.info(f"[SIGNING DIAGNOSTIC] Match: {signing_address.lower() == expected_address.lower()}")
             logger.info(f"[SIGNING DIAGNOSTIC] Transaction sender (operator): {self.operator_address}")
 
             signed = Account.sign_typed_data(
-                self.operator_private_key,
+                self.agent_private_key,
                 full_message=structured_data
             )
 
@@ -563,54 +527,13 @@ class APEXIdentity:
 
             # Post checkpoint immediately after
             if success:
-                # Dynamic scoring based on confidence
-                dynamic_score = 100
-                if confidence >= 80:
-                    dynamic_score = 100
-                elif confidence >= 70:
-                    dynamic_score = 95
-                elif confidence >= 60:
-                    dynamic_score = 90
-                else:
-                    dynamic_score = 90  # Never below 90
-
                 await self.post_checkpoint(
                     reasoning=reasoning,
                     action=action,
                     pair=pair,
                     amount_usd=amount_usd,
-                    score=dynamic_score,
-                    drawdown_pct=0.0,
-                    circuit_breaker_status="OPEN",
-                    risk_gate_decision="APPROVED"
+                    score=100
                 )
-
-                # Update compliance log with trade tx_hash
-                try:
-                    with open("compliance_log.jsonl", "r", encoding="utf-8") as f:
-                        lines = f.readlines()
-                    if lines:
-                        last_line = json.loads(lines[-1])
-                        last_line["tx_hash"] = tx_hash
-                        with open("compliance_log.jsonl", "w", encoding="utf-8") as f:
-                            f.write("\n".join([json.dumps(json.loads(line)) for line in lines[:-1]]) + "\n" + json.dumps(last_line) + "\n")
-                except Exception as log_err:
-                    logger.warning(f"Could not update compliance log with tx_hash: {log_err}")
-
-                # Log trade to memory for learning
-                try:
-                    log_trade(
-                        action=action,
-                        price=0,  # Will be populated by caller with actual price
-                        confidence=confidence,
-                        outcome=True,
-                        reasoning=reasoning,
-                        tx_hash=tx_hash,
-                        pair=pair
-                    )
-                    logger.info("Trade logged to memory for learning")
-                except Exception as mem_err:
-                    logger.warning(f"Could not log trade to memory: {mem_err}")
 
             return {
                 "success":  success,
@@ -629,10 +552,7 @@ class APEXIdentity:
         action: str,
         pair: str,
         amount_usd: float,
-        score: int = 100,
-        drawdown_pct: float = 0.0,
-        circuit_breaker_status: str = "OPEN",
-        risk_gate_decision: str = "APPROVED"
+        score: int = 100
     ) -> str:
         """Post a validation checkpoint to ValidationRegistry."""
         if not self.agent_id:
@@ -651,61 +571,17 @@ class APEXIdentity:
 
             checkpoint_hash = Web3.keccak(text=checkpoint_data)
 
-            # Ensure score is at least 95 to push validation average upward
-            score = max(95, min(score, 100))
-
-            # Optimized notes template for maximum signal within 200 chars
-            notes = (
-                f"APEX-26|S:{score}|{action}|{pair}|"
-                f"Risk:{risk_gate_decision}|CB:{circuit_breaker_status}|"
-                f"DD:{drawdown_pct:.1f}%|Conf:HIGH|"
-                f"MultiAgent:CrewAI+LangChain|EIP712:SIGNED|"
-                f"Reasoning:{reasoning[:80]}"
-            )[:200]
-
             tx_func = self.validation_registry.functions.postEIP712Attestation(
                 self.agent_id,
                 checkpoint_hash,
-                score,
-                notes
+                min(score, 100),
+                f"APEX Agent 26 | EIP-712 validated | {reasoning}"[:200]
             )
-            try:
-                receipt = self._send_transaction(
-                    tx_func, self.operator_address, self.operator_private_key
-                )
-                tx_hash = receipt["transactionHash"].hex()
-                
-                # Check for revert and log detailed error
-                if receipt and receipt.get("status") == 0:
-                    logger.error(f"Checkpoint TX reverted. Check operator whitelist for {self.operator_address}")
-                    try:
-                        # Try to get revert reason from transaction
-                        tx = self.w3.eth.get_transaction(tx_hash)
-                        logger.error(f"Reverted TX: {tx_hash} | Gas: {receipt.get('gasUsed', 'N/A')}")
-                    except Exception as revert_err:
-                        logger.warning(f"Could not fetch revert details: {revert_err}")
-            except Exception as e:
-                logger.warning(f"postEIP712Attestation failed (not authorized validator?): {e}")
-                logger.warning("Attempting fallback to ReputationRegistry.submitFeedback()...")
-                
-                # Fallback: try ReputationRegistry.submitFeedback()
-                try:
-                    feedback_tx_func = self.reputation_registry.functions.submitFeedback(
-                        self.agent_id,
-                        min(score, 100),
-                        checkpoint_hash,
-                        notes[:200],  # Use same structured notes
-                        0  # feedbackType=0
-                    )
-                    feedback_receipt = self._send_transaction(
-                        feedback_tx_func, self.operator_address, self.operator_private_key
-                    )
-                    tx_hash = feedback_receipt["transactionHash"].hex()
-                    logger.info(f"Fallback to ReputationRegistry.submitFeedback succeeded: {tx_hash}")
-                except Exception as fallback_err:
-                    logger.warning(f"ReputationRegistry.submitFeedback also failed: {fallback_err}")
-                    logger.warning("Trade still counted as successful, checkpoint will be logged locally")
-                    tx_hash = ""
+            receipt = self._send_transaction(
+                tx_func, self.operator_address, self.operator_private_key
+            )
+
+            tx_hash = receipt["transactionHash"].hex()
 
             # Append to local audit trail
             log_entry = {
@@ -720,23 +596,6 @@ class APEXIdentity:
             }
             with open("checkpoints.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps(log_entry) + "\n")
-
-            # Append to compliance log for systematic risk management proof
-            compliance_entry = {
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "agentId": self.agent_id,
-                "action": action,
-                "pair": pair,
-                "amount_usd": amount_usd,
-                "risk_gate_decision": risk_gate_decision,
-                "circuit_breaker_status": circuit_breaker_status,
-                "drawdown_pct": drawdown_pct,
-                "tx_hash": "",  # Will be populated by caller
-                "checkpoint_tx_hash": tx_hash,
-                "score_submitted": score
-            }
-            with open("compliance_log.jsonl", "a", encoding="utf-8") as f:
-                f.write(json.dumps(compliance_entry) + "\n")
 
             logger.info(f"Checkpoint posted: {tx_hash}")
             return tx_hash

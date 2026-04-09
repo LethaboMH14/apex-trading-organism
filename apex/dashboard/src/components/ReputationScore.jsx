@@ -131,8 +131,8 @@ const ReputationScore = ({
   };
 
   // Open Base explorer
-  const openBaseExplorer = (type, value) => {
-    const baseUrl = 'https://sepolia.basescan.org';
+  const openExplorer = (type, value) => {
+    const baseUrl = 'https://sepolia.etherscan.io';
     const url = type === 'address' 
       ? `${baseUrl}/address/${value}`
       : `${baseUrl}/token/${value}`;
@@ -308,7 +308,7 @@ const ReputationScore = ({
               Agent Address:
             </span>
             <button
-              onClick={() => openBaseExplorer('address', agentId)}
+              onClick={() => openExplorer('address', agentId)}
               style={{
                 backgroundColor: 'transparent',
                 border: 'none',
@@ -328,7 +328,7 @@ const ReputationScore = ({
         </div>
         
         <button
-          onClick={() => openBaseExplorer('address', agentId)}
+          onClick={() => openExplorer('address', agentId)}
           style={{
             width: '100%',
             backgroundColor: 'var(--apex-gold)',
@@ -352,7 +352,7 @@ const ReputationScore = ({
             e.target.style.transform = 'translateY(0)';
           }}
         >
-          View on Base Explorer
+          View on Sepolia Etherscan
         </button>
       </div>
     </div>

@@ -11,13 +11,10 @@ import sys
 import os
 import time
 import random
-import threading
 from datetime import datetime
 from websockets.server import serve
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-from apex_indexer import APEXIndexer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,7 +30,6 @@ class APEXWebSocketServer:
         self.running = False
         self.trade_count = 0
         self.continuous_trading_enabled = True
-        self._apex_live = None
 
     async def register_client(self, websocket):
         self.clients.add(websocket)
@@ -65,16 +61,9 @@ class APEXWebSocketServer:
         try:
             from apex_live import APEXLive
             logger.info(" [PIPELINE] APEXLive imported successfully")
-            if self._apex_live is None:
-                logger.info("[PIPELINE] Initializing APEXLive singleton...")
-                self._apex_live = APEXLive()
-            demo = self._apex_live
-            logger.info(" [PIPELINE] Using APEXLive singleton, running cycle...")
-            try:
-                result = await asyncio.wait_for(demo.run_cycle(), timeout=50)
-            except asyncio.TimeoutError:
-                logger.error("run_cycle timed out after 50s — skipping this cycle")
-                result = {"success": False, "error": "cycle_timeout"}
+            demo = APEXLive()
+            logger.info(" [PIPELINE] APEXLive instance created, running cycle...")
+            result = await demo.run_cycle()
             logger.info(f" [PIPELINE] Cycle returned: {result}")
 
             if result and result.get('success'):
@@ -206,24 +195,18 @@ class APEXWebSocketServer:
     # PERIODIC TASKS
     # ------------------------------------------------------------------
     async def periodic_pipeline_run(self):
-        """Run pipeline every 60 seconds. Does NOT wait for clients."""
-        logger.info(" [SCHEDULER] Periodic pipeline task started (60s interval)")
-        # Run once immediately at startup so we don't wait 60s to see first trade
+        """Run pipeline every 15 seconds. Does NOT wait for clients."""
+        logger.info(" [SCHEDULER] Periodic pipeline task started (15s interval)")
+        # Run once immediately at startup so we don't wait 15s to see first trade
         await asyncio.sleep(5)
         logger.info(" [SCHEDULER] Running STARTUP trade immediately...")
-        try:
-            await self.run_apex_pipeline()
-        except Exception as e:
-            logger.error(f"[SCHEDULER] Startup pipeline crashed: {e}", exc_info=True)
+        await self.run_apex_pipeline()
 
         while self.running:
-            await asyncio.sleep(60)
+            await asyncio.sleep(8)
             if self.continuous_trading_enabled:
-                logger.info(f" [SCHEDULER] 60s interval - running pipeline (trade #{self.trade_count + 1})")
-                try:
-                    await self.run_apex_pipeline()
-                except Exception as e:
-                    logger.error(f"[SCHEDULER] Pipeline crashed: {e}", exc_info=True)
+                logger.info(f" [SCHEDULER] 8s interval - running pipeline (trade #{self.trade_count + 1})")
+                await self.run_apex_pipeline()
             else:
                 logger.info("  [SCHEDULER] Trading paused - skipping cycle")
 
@@ -252,14 +235,6 @@ class APEXWebSocketServer:
     # ------------------------------------------------------------------
     async def start_server(self):
         self.running = True
-
-        # Start on-chain indexer as background thread
-        try:
-            indexer = APEXIndexer()
-            threading.Thread(target=indexer.start, daemon=True).start()
-            logger.info("APEX on-chain indexer started")
-        except Exception as e:
-            logger.warning(f"Failed to start indexer: {e} - continuing without indexer")
 
         asyncio.create_task(self.periodic_pipeline_run())
         asyncio.create_task(self.periodic_agent_status())

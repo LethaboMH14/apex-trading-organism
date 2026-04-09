@@ -97,71 +97,7 @@ const AgentFeed = ({ decisions = [], maxItems = 50, isConnected = true }) => {
     const sortedDecisions = [...decisions].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     const limitedDecisions = sortedDecisions.slice(0, maxItems);
     setDisplayDecisions(limitedDecisions);
-  }, []);
-
-  // Mock data for demonstration (remove in production)
-  useEffect(() => {
-    if (decisions.length === 0) {
-      const mockDecisions = [
-        {
-          id: '1',
-          agentName: 'PROF. KWAME ASANTE',
-          role: 'LLM Router (Chief AI Officer)',
-          department: 'ai',
-          action: 'DECIDED',
-          confidence: 85,
-          timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-          reasoning: 'Market conditions indicate bullish momentum on BTC based on technical analysis and sentiment scoring. Risk parameters within acceptable range.',
-          onChainHash: '0x1234567890abcdef1234567890abcdef12345678'
-        },
-        {
-          id: '2',
-          agentName: 'DR. JABARI MENSAH',
-          role: 'NLP Analyst',
-          department: 'data',
-          action: 'ANALYZING',
-          confidence: 72,
-          timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-          reasoning: 'Processing news sentiment for major cryptocurrencies. Current sentiment shows positive bias for ETH, neutral for BTC.',
-          onChainHash: null
-        },
-        {
-          id: '3',
-          agentName: 'DR. YUKI TANAKA',
-          role: 'Market Intelligence',
-          department: 'data',
-          action: 'ANALYZING',
-          confidence: 95,
-          timestamp: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-          reasoning: 'Analyzing real-time market data from multiple exchanges. BTC showing strong buy signals across all major venues.',
-          onChainHash: '0xabcdef1234567890abcdef1234567890abcdef12'
-        },
-        {
-          id: '4',
-          agentName: 'DR. SIPHO NKOSI',
-          role: 'Risk Management',
-          department: 'risk',
-          action: 'VALIDATED',
-          confidence: 88,
-          timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-          reasoning: 'Risk assessment complete. Current position size within 2% of portfolio limit. Drawdown at acceptable levels.',
-          onChainHash: '0x7890abcdef1234567890abcdef1234567890abcd'
-        },
-        {
-          id: '5',
-          agentName: 'DR. PRIYA NAIR',
-          role: 'ERC-8004 & On-Chain',
-          department: 'trust',
-          action: 'LEARNING',
-          confidence: 67,
-          timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-          reasoning: 'Analyzing validation patterns for reputation scoring. Recent trades show high success rate, recommending reputation increase.',
-          onChainHash: null
-        }
-      ];
-      setDisplayDecisions(mockDecisions);
-    }
-  }, []);
+  }, [decisions, maxItems]);
 
   const toggleCardExpansion = (cardId) => {
     setExpandedCards(prev => {
@@ -174,6 +110,13 @@ const AgentFeed = ({ decisions = [], maxItems = 50, isConnected = true }) => {
       return newSet;
     });
   };
+
+  // Update display decisions when props change
+  useEffect(() => {
+    const sortedDecisions = [...decisions].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const limitedDecisions = sortedDecisions.slice(0, maxItems);
+    setDisplayDecisions(limitedDecisions);
+  }, [decisions, maxItems]);
 
   return (
     <div className="agent-feed">

@@ -17,7 +17,6 @@ Standard: "The system must be measurably smarter every 24 hours."
 import asyncio
 import json
 import logging
-import os
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta

@@ -23,7 +23,6 @@ from apex_risk import RiskGate, RiskParameters, CircuitBreaker
 from apex_llm_router import LLMRouter
 from apex_identity import APEXIdentity
 from kraken_live import KrakenLiveTrader
-from apex_memory import load_recent_trades, format_trades_for_prompt, analyze_recent_bias, get_memory_count, get_win_rate
 from apex_reasoning import (
     build_trade_reasoning_prompt,
     build_checkpoint_reasoning,
@@ -31,8 +30,6 @@ from apex_reasoning import (
     extract_action_from_reasoning,
     extract_confidence_from_reasoning,
 )
-from apex_learn import LearningLoop, TradeData
-from apex_rl import ApexPolicyNetwork
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -55,72 +52,7 @@ class APEXLive:
         self.kraken_trader = KrakenLiveTrader()
         self._cycle_count = 0
 
-        # Load trade memory
-        memory_count = get_memory_count()
-        logger.info(f"APEX Memory: loaded {memory_count} previous trades")
-        if memory_count > 0:
-            logger.info(f"Win rate (last 10): {get_win_rate(10):.1f}%")
-
-        # Initialize learning modules
-        self.learning_loop = LearningLoop()
-        self.signal_weights = {
-            "price_momentum": 0.4,
-            "sentiment": 0.2,
-            "prism_ai_signal": 0.3,
-            "volume_anomaly": 0.1,
-            "on_chain": 0.0
-        }
-        logger.info("APEX Learning modules initialized")
-
-        # Initialize RL policy network
-        self.policy_network = None
-        try:
-            self.policy_network = ApexPolicyNetwork()
-            # Try to load saved policy
-            import os
-            if os.path.exists("apex/models/policy_network.pt"):
-                self.policy_network.load_checkpoint("apex/models/policy_network.pt")
-                logger.info("APEX RL policy loaded from checkpoint")
-            else:
-                logger.info("APEX RL policy initialized (no checkpoint found)")
-        except Exception as e:
-            logger.warning(f"RL policy initialization failed: {e} - will use rule-based fallback")
-
         logger.info("APEX Live orchestrator initialized with upgraded reasoning engine")
-
-    def _load_trades_from_memory(self, n: int = 20) -> list:
-        """Load last n trades from trade_memory.jsonl and convert to TradeData objects."""
-        import json
-        from pathlib import Path
-
-        if not Path("trade_memory.jsonl").exists():
-            return []
-
-        try:
-            with open("trade_memory.jsonl", "r", encoding="utf-8") as f:
-                lines = f.readlines()
-
-            trades = []
-            for line in lines[-n:]:
-                trade_data = json.loads(line)
-                trade = TradeData(
-                    symbol=trade_data.get("pair", "BTC/USD").split("/")[0],
-                    side=trade_data.get("action", "BUY"),
-                    amount=trade_data.get("amount_usd", 0) / trade_data.get("price", 1),
-                    entry_price=trade_data.get("price", 0),
-                    exit_price=trade_data.get("price", 0),  # Use same price for now
-                    pnl=0,  # Will need to calculate from actual trade results
-                    timestamp=datetime.fromisoformat(trade_data.get("timestamp", datetime.now().isoformat())),
-                    signal_source="live",
-                    confidence=trade_data.get("confidence", 0.5)
-                )
-                trades.append(trade)
-
-            logger.info(f"Loaded {len(trades)} trades from memory")
-            return trades
-        except Exception as e:
-            logger.warning(f"Failed to load trades from memory: {e}")
-            return []
 
     async def run_cycle(self, trade_size: float = 350) -> Dict[str, Any]:
         """Run a complete trading cycle with high-quality reasoning."""
@@ -190,65 +122,9 @@ class APEXLive:
             # 4. Build high-quality reasoning prompt and get LLM decision
             logger.info("Generating high-quality AI trading decision...")
 
-            # Load recent trade history for context
-            recent_trades = load_recent_trades(10)
-            trade_history_context = format_trades_for_prompt(recent_trades)
-            logger.info(f"Loaded {len(recent_trades)} recent trades for context")
-
-            # Analyze bias from recent trades
-            bias = analyze_recent_bias(3)
-            if bias:
-                logger.info(f"Detected bias toward {bias} based on recent trade pattern")
-
-            # First get a preliminary action signal using RL policy if available
-            preliminary_action = "BUY"
-            decision_method = "rule-based"
-
-            if self.policy_network is not None:
-                try:
-                    import torch
-                    import numpy as np
-
-                    # Create state vector from market data
-                    state = np.array([
-                        change / 100.0,  # price momentum normalized
-                        sent_score / 100.0,  # sentiment normalized
-                        0.0,  # prism signal (not available yet)
-                        0.0,  # volume anomaly (not available yet)
-                        0.0,  # on-chain signal (not available yet)
-                        0.0,  # current position
-                        0.0,  # unrealized pnl
-                        (datetime.now().hour / 24.0)  # time of day
-                    ], dtype=np.float32)
-
-                    state_tensor = torch.FloatTensor(state).unsqueeze(0)
-                    action, probs, value = self.policy_network.get_action(state_tensor)
-
-                    # Map action (0=hold, 1=buy, 2=sell, 3=close) to BUY/SELL
-                    action_map = {0: "HOLD", 1: "BUY", 2: "SELL", 3: "HOLD"}
-                    preliminary_action = action_map.get(action, "BUY")
-                    decision_method = "RL policy"
-                    logger.info(f"RL policy action: {preliminary_action} (confidence: {probs[0, action].item():.3f})")
-                except Exception as e:
-                    logger.warning(f"RL policy inference failed: {e} - using rule-based fallback")
-            else:
-                # Rule-based fallback
-                preliminary_action = "BUY" if (change > 0 and sent_score > 50) else \
-                                      "SELL" if (change < -1 and sent_score < 45) else "BUY"
-
-            logger.info(f"Preliminary action: {preliminary_action} ({decision_method})")
-
-            # Apply bias if detected
-            if bias:
-                preliminary_action = bias
-                logger.info(f"Applying bias: {preliminary_action}")
-
-            # Calculate enhanced market context
-            change_1h = change * 0.1  # Approximate 1h change from 24h change
-            vwap_position = "ABOVE" if change > 0 else "BELOW" if change < 0 else "NEUTRAL"
-            rsi_signal = "OVERBOUGHT" if change > 1.0 else "OVERSOLD" if change < -1.0 else "NEUTRAL"
-            circuit_breaker_status = "OPEN" if not self.circuit_breaker.is_open else "TRIPPED"
-            drawdown_pct = self.circuit_breaker.current_drawdown * 100 if hasattr(self.circuit_breaker, 'current_drawdown') else 0.0
+            # First get a preliminary action signal based on data
+            preliminary_action = "BUY" if (change > 0 and sent_score > 50) else \
+                                  "SELL" if (change < -1 and sent_score < 45) else "BUY"
 
             prompt = build_trade_reasoning_prompt(
                 price=price,
@@ -258,12 +134,6 @@ class APEXLive:
                 risk_level=risk_level,
                 action=preliminary_action,
                 trade_size=trade_size,
-                trade_history=trade_history_context,
-                change_1h=change_1h,
-                vwap_position=vwap_position,
-                rsi_signal=rsi_signal,
-                circuit_breaker_status=circuit_breaker_status,
-                drawdown_pct=drawdown_pct,
             )
 
             reasoning = ""
@@ -301,73 +171,9 @@ class APEXLive:
                     f"The risk-reward profile supports entry at this level with defined downside. "
                     f"Multi-agent pipeline consensus reached after DataPipeline, SentimentPipeline, and RiskGate validation.\n\n"
                     f"**CONFIDENCE & EXECUTION**\n"
-                    f"Confidence 82% based on multi-signal convergence. Key risk: adverse price movement invalidating momentum thesis.\n"
+                    f"Confidence: 82%. Key invalidation: sudden sentiment reversal or price break below recent support."
                 )
                 action = preliminary_action
-                confidence = 82
-
-            # Fallback: if LLM still returns HOLD despite improved prompt, override with directional bias
-            if action == "HOLD":
-                logger.warning("LLM returned HOLD - applying directional fallback logic")
-                if change_1h < -0.5:
-                    action = "BUY"  # mean reversion
-                    reasoning = (
-                        f"**SIGNAL ANALYSIS**\n"
-                        f"BTC at ${price:,.2f} showing {change:+.2f}% 24h change with {change_1h:+.2f}% 1h decline. "
-                        f"Mean-reversion signal: oversold conditions favor recovery. "
-                        f"RSI-proxy oversold at {rsi_signal}. Price below VWAP ({vwap_position}).\n\n"
-                        f"**SENTIMENT ASSESSMENT**\n"
-                        f"Market sentiment {sent_score}/100 with slight {'fear' if sent_score < 50 else 'greed'} bias. "
-                        f"Mean-reversion signal overrides neutral LLM assessment.\n\n"
-                        f"**RISK EVALUATION**\n"
-                        f"RiskGate APPROVED - position ${trade_size} within $1000 limit. "
-                        f"Circuit breaker {circuit_breaker_status}. Drawdown {drawdown_pct:.1f}% (within 5% limit).\n\n"
-                        f"**TRADE THESIS**\n"
-                        f"Mean-reversion entry: BTC down {change_1h:+.2f}% in 1h suggests oversold conditions. "
-                        f"Statistical edge favors recovery. Sentiment {sent_score}/100 supports contrarian play.\n\n"
-                        f"**CONFIDENCE & EXECUTION**\n"
-                        f"Confidence 84% based on price+sentiment convergence. Risk: extended oversold move possible.\n"
-                    )
-                    confidence = 84
-                elif change_1h > 0.5:
-                    action = "SELL"  # momentum exhaustion
-                    reasoning = (
-                        f"**SIGNAL ANALYSIS**\n"
-                        f"BTC at ${price:,.2f} showing {change:+.2f}% 24h change with {change_1h:+.2f}% 1h rise. "
-                        f"Momentum exhaustion signal: overbought short-term, taking profit. "
-                        f"RSI-proxy overbought at {rsi_signal}. Price above VWAP ({vwap_position}).\n\n"
-                        f"**SENTIMENT ASSESSMENT**\n"
-                        f"Market sentiment {sent_score}/100 with slight {'greed' if sent_score > 50 else 'fear'} bias. "
-                        f"Price extension above VWAP suggests pullback.\n\n"
-                        f"**RISK EVALUATION**\n"
-                        f"RiskGate APPROVED - position ${trade_size} within $1000 limit. "
-                        f"Circuit breaker {circuit_breaker_status}. Drawdown {drawdown_pct:.1f}% (within 5% limit).\n\n"
-                        f"**TRADE THESIS**\n"
-                        f"Momentum exhaustion: BTC up {change_1h:+.2f}% in 1h suggests overbought conditions. "
-                        f"Taking profit on extension. Sentiment {sent_score}/100 supports contrarian play.\n\n"
-                        f"**CONFIDENCE & EXECUTION**\n"
-                        f"Confidence 84% based on price+sentiment convergence. Risk: momentum could continue.\n"
-                    )
-                    confidence = 84
-                else:
-                    action = "BUY"  # default carry bias
-                    reasoning = (
-                        f"**SIGNAL ANALYSIS**\n"
-                        f"BTC at ${price:,.2f} showing {change:+.2f}% 24h change with {change_1h:+.2f}% 1h move. "
-                        f"Carry bias entry in low-volatility environment. BTC stable ({change_1h:+.2f}% 1h).\n\n"
-                        f"**SENTIMENT ASSESSMENT**\n"
-                        f"Market sentiment neutral {sent_score}/100. Statistical edge in range-bound markets favors long carry.\n\n"
-                        f"**RISK EVALUATION**\n"
-                        f"RiskGate APPROVED - position ${trade_size} within $1000 limit. "
-                        f"Circuit breaker {circuit_breaker_status}. Drawdown {drawdown_pct:.1f}% (within 5% limit).\n\n"
-                        f"**TRADE THESIS**\n"
-                        f"Carry bias: stable conditions with neutral sentiment favor long positioning. "
-                        f"Statistical edge in range-bound markets. Sentiment {sent_score}/100 neutral.\n\n"
-                        f"**CONFIDENCE & EXECUTION**\n"
-                        f"Confidence 82% based on carry thesis. Risk: breakout could invalidate range assumption.\n"
-                    )
-                    confidence = 82
-                logger.info(f"Applied fallback action: {action} with reasoning")
 
             logger.info(f"AI Decision: {action} (Confidence: {confidence}%)")
 
@@ -434,35 +240,6 @@ class APEXLive:
                 logger.info("Posted HOLD checkpoint with rich reasoning")
 
             cycle_duration = (datetime.now() - cycle_start).total_seconds()
-
-            # Run learning loop every 5 cycles
-            if self._cycle_count % 5 == 0:
-                logger.info("🧠 Running learning optimization cycle...")
-                try:
-                    trades = self._load_trades_from_memory(20)
-                    if trades:
-                        # Calculate performance metrics
-                        current_sharpe = self.learning_loop.tracker.compute_sharpe(trades)
-                        drawdown_metrics = self.learning_loop.tracker.compute_drawdown(trades)
-
-                        logger.info(f"📊 Performance - Sharpe: {current_sharpe:.3f}, Max Drawdown: {drawdown_metrics['max_drawdown']:.3f}")
-
-                        # Optimize signal weights if Sharpe is low
-                        if current_sharpe < 0.5:
-                            performance_data = {
-                                "current_sharpe": current_sharpe,
-                                "max_drawdown": drawdown_metrics["max_drawdown"],
-                                "attribution": {}
-                            }
-                            new_weights = self.learning_loop.optimizer.optimize(performance_data)
-                            self.signal_weights = new_weights
-                            logger.info(f"APEX self-optimized signal weights: {new_weights}")
-                        else:
-                            logger.info("✅ Performance satisfactory - no optimization needed")
-                    else:
-                        logger.info("⚠️ No trade history available for learning")
-                except Exception as learn_err:
-                    logger.warning(f"Learning cycle failed: {learn_err}")
 
             result = {
                 "cycle_id": cycle_start.strftime("%Y%m%d_%H%M%S"),
@@ -571,11 +348,7 @@ class APEXLive:
                 logger.info(f"Reached max cycles ({max_cycles}), stopping")
                 break
 
-            try:
-                result = await asyncio.wait_for(self.run_cycle(), timeout=120)
-            except asyncio.TimeoutError:
-                logger.error("Cycle timed out after 120s — forcing next cycle")
-                continue
+            result = await self.run_cycle()
 
             if result.get("success"):
                 logger.info(f"Cycle #{self._cycle_count} successful - reasoning: {result['ai_decision']['reasoning_length']} chars")

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  apex-ws:
+    build: .
+    command: python apex_ws.py
+    ports:
+      - "8766:8766"
+    env_file:
+      - ../.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  apex-indexer:
+    build: .
+    command: python apex_indexer.py
+    env_file:
+      - ../.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  apex-risk-api:
+    build: .
+    command: uvicorn apex.api.risk_api:app --host 0.0.0.0 --port 3002
+    ports:
+      - "3002:3002"
+    env_file:
+      - ../.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
