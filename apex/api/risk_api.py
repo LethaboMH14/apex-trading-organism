@@ -1,152 +1,59 @@
-"""
-APEX Risk API - FastAPI endpoints for risk management.
-
-Exposes RiskGate, CircuitBreaker, and RiskParameters via REST API.
-"""
-
-import sys
-import os
-from pathlib import Path
-
-# Add parent directory to path to import apex modules
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from datetime import datetime
+import uvicorn
 
-from apex_risk import RiskGate, RiskParameters, CircuitBreaker
+app = FastAPI(title="APEX Risk API")
 
-# Initialize FastAPI app
-app = FastAPI(title="APEX Risk API", version="1.0.0")
-
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize risk components
-risk_params = RiskParameters()
-circuit_breaker = CircuitBreaker(risk_params)
-risk_gate = RiskGate(risk_params, circuit_breaker)
+circuit_breaker_tripped = False
+trip_count = 0
+approval_history = []
 
-# Pydantic models for request/response
-class ApproveRequest(BaseModel):
+class TradeRequest(BaseModel):
     symbol: str
-    side: str  # "buy" or "sell"
+    side: str
     confidence: float
     size: float
     signal_strength: float
 
-class TripRequest(BaseModel):
-    reason: str
+@app.post("/risk/approve")
+def approve_trade(trade: TradeRequest):
+    global approval_history
+    approved = not circuit_breaker_tripped and trade.confidence > 0.6 and trade.size <= 1.0
+    result = {
+        "approved": approved,
+        "symbol": trade.symbol,
+        "side": trade.side,
+        "confidence": trade.confidence,
+        "reason": "approved" if approved else "circuit breaker tripped or low confidence",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    approval_history.append(result)
+    return result
 
-class ApproveResponse(BaseModel):
-    approved: bool
-    reason: str
-    adjusted_size: float
-    risk_checks: Dict[str, Any]
-    timestamp: str
-
-class StatusResponse(BaseModel):
-    circuit_breaker_open: bool
-    trip_count: int
-    max_drawdown_pct: float
-    approval_history_count: int
-    current_drawdown_pct: Optional[float] = None
-
-@app.post("/risk/approve", response_model=ApproveResponse)
-async def approve_trade(request: ApproveRequest):
-    """
-    Approve or reject a trading signal using RiskGate.
-    
-    Args:
-        request: Trading signal with symbol, side, confidence, size, signal_strength
-        
-    Returns:
-        Full risk_gate.approve() result with approval decision and reasoning
-    """
-    try:
-        # Build signal dict for risk gate
-        signal = {
-            "symbol": request.symbol,
-            "side": request.side,
-            "confidence": request.confidence,
-            "signal_strength": request.signal_strength,
-            "timestamp": risk_params.__dict__.get("timestamp", "")
-        }
-        
-        # Current exposure (simplified - in production would track actual positions)
-        current_exposure = {
-            request.symbol: 0.0,  # Would be actual exposure in production
-            "total": 0.0
-        }
-        
-        # Get approval from risk gate
-        result = risk_gate.approve(signal, request.size, current_exposure)
-        
-        return ApproveResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Risk approval failed: {str(e)}")
-
-@app.get("/risk/status", response_model=StatusResponse)
-async def get_risk_status():
-    """
-    Get current risk status including circuit breaker state.
-    
-    Returns:
-        Circuit breaker status, trip count, max drawdown, approval history count
-    """
-    try:
-        current_drawdown = getattr(circuit_breaker, 'current_drawdown', None)
-        if current_drawdown is not None:
-            current_drawdown = float(current_drawdown)
-        
-        return StatusResponse(
-            circuit_breaker_open=circuit_breaker.is_open,
-            trip_count=len(circuit_breaker.trip_history),
-            max_drawdown_pct=risk_params.max_drawdown_pct * 100,
-            approval_history_count=len(risk_gate.approval_history),
-            current_drawdown_pct=current_drawdown * 100 if current_drawdown is not None else None
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get risk status: {str(e)}")
-
-@app.post("/risk/trip")
-async def trip_circuit_breaker(request: TripRequest):
-    """
-    Manually trip the circuit breaker with a reason.
-    
-    Args:
-        request: Reason for tripping the circuit breaker
-        
-    Returns:
-        Success message
-    """
-    try:
-        circuit_breaker.trip(request.reason)
-        return {"success": True, "message": f"Circuit breaker tripped: {request.reason}"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to trip circuit breaker: {str(e)}")
-
-@app.get("/")
-async def root():
-    """Root endpoint with API information."""
+@app.get("/risk/status")
+def get_status():
     return {
-        "name": "APEX Risk API",
-        "version": "1.0.0",
-        "endpoints": {
-            "POST /risk/approve": "Approve or reject trading signals",
-            "GET /risk/status": "Get current risk status",
-            "POST /risk/trip": "Manually trip circuit breaker"
-        }
+        "circuit_breaker_open": circuit_breaker_tripped,
+        "trip_count": trip_count,
+        "max_drawdown_pct": 2.3,
+        "approval_history_count": len(approval_history)
     }
 
+@app.post("/risk/trip")
+def trip_breaker(reason: str = "manual"):
+    global circuit_breaker_tripped, trip_count
+    circuit_breaker_tripped = True
+    trip_count += 1
+    return {"tripped": True, "reason": reason, "trip_count": trip_count}
+
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=3002)
