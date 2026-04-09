@@ -12,7 +12,7 @@ name: Deploy to Azure Container Apps
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build-and-deploy:
@@ -30,9 +30,9 @@ jobs:
       - name: Build and push Docker image to Azure Container Registry
         run: |
           cd apex
-          az acr login --name apexregistry
-          docker build -t apexregistry.azurecr.io/apex:latest .
-          docker push apexregistry.azurecr.io/apex:latest
+          az acr login --name apexregistry14
+          docker build -t apexregistry14.azurecr.io/apex:latest .
+          docker push apexregistry14.azurecr.io/apex:latest
       
       - name: Deploy apex-ws Container App
         run: |
