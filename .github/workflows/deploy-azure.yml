@@ -6,8 +6,6 @@
 # - SEPOLIA_RPC_URL: Ethereum Sepolia RPC URL
 # - APEX_PRIVATE_KEY: APEX private key for signing transactions
 # - APEX_AGENT_ID: APEX agent ID (e.g., "26")
-# - REGISTRY_USERNAME: Azure Container Registry username
-# - REGISTRY_PASSWORD: Azure Container Registry password
 
 name: Deploy to Azure Container Apps
 
@@ -36,6 +34,13 @@ jobs:
           docker build -t apexregistry14.azurecr.io/apex:${{ github.sha }} .
           docker push apexregistry14.azurecr.io/apex:${{ github.sha }}
       
+      - name: Attach ACR to Container Apps
+        run: |
+          az acr update --name apexregistry14 --admin-enabled true
+          az containerapp env update \
+            --name apex-env \
+            --resource-group precision-pad-rg
+      
       - name: Deploy apex-ws Container App
         run: |
           az containerapp create \
@@ -46,9 +51,8 @@ jobs:
             --target-port 8766 \
             --ingress external \
             --registry-server apexregistry14.azurecr.io \
-            --registry-username ${{ secrets.REGISTRY_USERNAME }} \
-            --registry-password ${{ secrets.REGISTRY_PASSWORD }} \
-            --env-vars AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} AZURE_COSMOS_CONNECTION_STRING=${{ secrets.AZURE_COSMOS_CONNECTION_STRING }} SEPOLIA_RPC_URL=${{ secrets.SEPOLIA_RPC_URL }} APEX_PRIVATE_KEY=${{ secrets.APEX_PRIVATE_KEY }} APEX_AGENT_ID=${{ secrets.APEX_AGENT_ID }}
+            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" COSMOS_CONNECTION_STRING="${{ secrets.AZURE_COSMOS_CONNECTION_STRING }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
+            --mi-system-assigned
       
       - name: Deploy apex-indexer Container App
         run: |
@@ -59,9 +63,8 @@ jobs:
             --image apexregistry14.azurecr.io/apex:${{ github.sha }} \
             --ingress internal \
             --registry-server apexregistry14.azurecr.io \
-            --registry-username ${{ secrets.REGISTRY_USERNAME }} \
-            --registry-password ${{ secrets.REGISTRY_PASSWORD }} \
-            --env-vars AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} AZURE_COSMOS_CONNECTION_STRING=${{ secrets.AZURE_COSMOS_CONNECTION_STRING }} SEPOLIA_RPC_URL=${{ secrets.SEPOLIA_RPC_URL }} APEX_PRIVATE_KEY=${{ secrets.APEX_PRIVATE_KEY }} APEX_AGENT_ID=${{ secrets.APEX_AGENT_ID }}
+            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" COSMOS_CONNECTION_STRING="${{ secrets.AZURE_COSMOS_CONNECTION_STRING }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
+            --mi-system-assigned
       
       - name: Deploy apex-risk-api Container App
         run: |
@@ -73,6 +76,5 @@ jobs:
             --target-port 3002 \
             --ingress external \
             --registry-server apexregistry14.azurecr.io \
-            --registry-username ${{ secrets.REGISTRY_USERNAME }} \
-            --registry-password ${{ secrets.REGISTRY_PASSWORD }} \
-            --env-vars AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} AZURE_COSMOS_CONNECTION_STRING=${{ secrets.AZURE_COSMOS_CONNECTION_STRING }} SEPOLIA_RPC_URL=${{ secrets.SEPOLIA_RPC_URL }} APEX_PRIVATE_KEY=${{ secrets.APEX_PRIVATE_KEY }} APEX_AGENT_ID=${{ secrets.APEX_AGENT_ID }}
+            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" COSMOS_CONNECTION_STRING="${{ secrets.AZURE_COSMOS_CONNECTION_STRING }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
+            --mi-system-assigned
