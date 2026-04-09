@@ -1,0 +1,11 @@
+websockets
+web3
+python-dotenv
+requests
+openai
+fastapi
+uvicorn
+aiohttp
+azure-cosmos
+pandas
+numpy

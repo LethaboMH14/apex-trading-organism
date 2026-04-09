@@ -7,8 +7,8 @@ WORKDIR /app
 COPY *.py ./
 COPY api/*.py ./api/
 
-# Copy requirements if exists
-COPY requirements.txt ./requirements.txt 2>/dev/null || true
+# Copy requirements
+COPY requirements.txt ./
 
 # Install required packages
 RUN pip install --no-cache-dir \
