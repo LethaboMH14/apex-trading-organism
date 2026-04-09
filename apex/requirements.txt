@@ -9,3 +9,4 @@ aiohttp
 azure-cosmos
 pandas
 numpy
+nest_asyncio
