@@ -34,13 +34,11 @@ jobs:
           docker build -t apexregistry14.azurecr.io/apex:${{ github.sha }} .
           docker push apexregistry14.azurecr.io/apex:${{ github.sha }}
       
-      - name: Attach ACR to Container Apps
+      - name: Get ACR credentials
         run: |
-          az acr update --name apexregistry14 --admin-enabled true
-          az containerapp env update \
-            --name apex-env \
-            --resource-group precision-pad-rg
-      
+          echo "ACR_USERNAME=$(az acr credential show --name apexregistry14 --query username -o tsv)" >> $GITHUB_ENV
+          echo "ACR_PASSWORD=$(az acr credential show --name apexregistry14 --query passwords[0].value -o tsv)" >> $GITHUB_ENV
+
       - name: Deploy apex-ws Container App
         run: |
           az containerapp create \
@@ -51,9 +49,10 @@ jobs:
             --target-port 8766 \
             --ingress external \
             --registry-server apexregistry14.azurecr.io \
-            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" COSMOS_CONNECTION_STRING="${{ secrets.AZURE_COSMOS_CONNECTION_STRING }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
-            --mi-system-assigned
-      
+            --registry-username ${{ env.ACR_USERNAME }} \
+            --registry-password ${{ env.ACR_PASSWORD }} \
+            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}"
+
       - name: Deploy apex-indexer Container App
         run: |
           az containerapp create \
@@ -61,11 +60,11 @@ jobs:
             --resource-group precision-pad-rg \
             --environment apex-env \
             --image apexregistry14.azurecr.io/apex:${{ github.sha }} \
-            --ingress internal \
             --registry-server apexregistry14.azurecr.io \
-            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" COSMOS_CONNECTION_STRING="${{ secrets.AZURE_COSMOS_CONNECTION_STRING }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
-            --mi-system-assigned
-      
+            --registry-username ${{ env.ACR_USERNAME }} \
+            --registry-password ${{ env.ACR_PASSWORD }} \
+            --env-vars AZURE_COSMOS_CONNECTION_STRING="${{ secrets.AZURE_COSMOS_CONNECTION_STRING }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}"
+
       - name: Deploy apex-risk-api Container App
         run: |
           az containerapp create \
@@ -76,5 +75,6 @@ jobs:
             --target-port 3002 \
             --ingress external \
             --registry-server apexregistry14.azurecr.io \
-            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" COSMOS_CONNECTION_STRING="${{ secrets.AZURE_COSMOS_CONNECTION_STRING }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}" \
-            --mi-system-assigned
+            --registry-username ${{ env.ACR_USERNAME }} \
+            --registry-password ${{ env.ACR_PASSWORD }} \
+            --env-vars AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" APEX_PRIVATE_KEY="${{ secrets.APEX_PRIVATE_KEY }}" APEX_AGENT_ID="${{ secrets.APEX_AGENT_ID }}"
