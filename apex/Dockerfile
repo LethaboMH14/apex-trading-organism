@@ -6,6 +6,7 @@ WORKDIR /app
 # Copy all Python files
 COPY *.py ./
 COPY api/*.py ./api/
+COPY start_risk_api.py ./
 
 # Copy requirements
 COPY requirements.txt ./
