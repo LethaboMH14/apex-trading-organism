@@ -125,7 +125,7 @@ class APEXIndexer:
             else:
                 raise ValueError("COSMOS_URL or COSMOS_KEY not set")
         except Exception as e:
-            logger.warning(f"CosmosDB initialization failed: {e} - falling back to local file only")
+            logger.info(f"CosmosDB not configured — using local file storage")
             self.cosmos_client = None
             self.cosmos_container = None
         
