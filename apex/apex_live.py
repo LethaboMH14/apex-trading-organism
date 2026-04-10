@@ -251,35 +251,40 @@ class APEXLive:
                         logger.info(f"Blockchain submission successful: {tx_hash}")
                         # Wait for chain to process transaction before checkpoint
                         await asyncio.sleep(15)  # Give chain time to process before checkpoint
-                        # Post validation checkpoint after every successful trade
-                        try:
-                            checkpoint_reasoning = f"BTC ${price:.0f} | Sentiment {sent_score:.0f}/100 | Risk {risk_level} | Action:{action} | TX:{tx_hash[:16]}"
-                            await self.identity.post_checkpoint(
-                                reasoning=checkpoint_reasoning,
-                                action=action,
-                                pair="BTC/USD",
-                                amount_usd=trade_size,
-                                score=100,
-                                risk_gate_decision="APPROVED",
-                                circuit_breaker_status="OPEN",
-                                drawdown_pct=0.0
-                            )
-                            logger.info("✅ Validation checkpoint posted")
-                        except Exception as cp_err:
-                            logger.warning(f"Checkpoint post failed: {cp_err}")
-
-                        # Update RL policy with trade outcome
-                        trade_outcome = {
-                            "action": action,
-                            "price": price,
-                            "change_24h": change,
-                            "sentiment": sent_score,
-                            "success": blockchain_success
-                        }
-                        if self.policy_network:
-                            self.policy_network.update(trade_outcome)
                     else:
                         logger.warning("Blockchain submission failed")
+
+                    # Post validation checkpoint every cycle regardless of trade success
+                    try:
+                        if blockchain_success:
+                            checkpoint_reasoning = f"BTC ${price:.0f} | Sentiment {sent_score:.0f}/100 | Risk {risk_level} | Action:{action} | TX:{tx_hash[:16]}"
+                        else:
+                            checkpoint_reasoning = f"BTC ${price:.0f} | Sentiment {sent_score:.0f}/100 | Risk {risk_level} | Action:{action} | TX:FAILED"
+                        
+                        await self.identity.post_checkpoint(
+                            reasoning=checkpoint_reasoning,
+                            action=action,
+                            pair="BTC/USD",
+                            amount_usd=trade_size if blockchain_success else 0,
+                            score=100,
+                            risk_gate_decision="APPROVED" if approved else "REJECTED",
+                            circuit_breaker_status="OPEN",
+                            drawdown_pct=0.0
+                        )
+                        logger.info("✅ Validation checkpoint posted")
+                    except Exception as cp_err:
+                        logger.warning(f"Checkpoint post failed: {cp_err}")
+
+                    # Update RL policy with trade outcome
+                    trade_outcome = {
+                        "action": action,
+                        "price": price,
+                        "change_24h": change,
+                        "sentiment": sent_score,
+                        "success": blockchain_success
+                    }
+                    if self.policy_network:
+                        self.policy_network.update(trade_outcome)
                 except Exception as e:
                     logger.error(f"Blockchain submission error: {e}")
 
