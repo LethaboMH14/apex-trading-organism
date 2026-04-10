@@ -721,7 +721,7 @@ class APEXIdentity:
                 score,              # score uint8 (0-100)
                 outcome_ref,        # outcomeRef bytes32
                 feedback_comment,   # comment string
-                1                   # feedbackType uint8 (1 = self-assessment)
+                0                   # feedbackType uint8: 0 = performance (try 0 first, then 2 if still failing)
             )
             receipt = self._send_transaction(
                 tx_func, self.operator_address, self.operator_private_key

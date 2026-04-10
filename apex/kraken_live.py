@@ -48,15 +48,32 @@ class KrakenLiveTrader:
             return "", str(e), 1
 
     def _ensure_paper_initialized(self):
-        """Initialize paper account with $10,000 if not already set up."""
-        stdout, stderr, code = self._run(["paper", "status", "-o", "json"])
-        if code != 0 or not stdout:
+        """Ensure paper account has sufficient balance."""
+        stdout, stderr, code = self._run(["paper", "balance", "-o", "json"])
+        needs_init = True
+        if code == 0 and stdout:
+            try:
+                data = json.loads(stdout)
+                # Check USD balance
+                usd_balance = float(data.get("USD", data.get("usd", 0)))
+                if usd_balance >= 500:
+                    logger.info(f"Paper account OK: ${usd_balance:.2f} USD available")
+                    needs_init = False
+                else:
+                    logger.warning(f"Paper account low: ${usd_balance:.2f} — reinitializing with $10,000")
+            except Exception:
+                pass
+        
+        if needs_init:
             logger.info("Initializing paper trading account with $10,000...")
             stdout, stderr, code = self._run(["paper", "init", "--balance", "10000", "-o", "json"])
             if code == 0:
                 logger.info("Paper account initialized with $10,000 virtual USD")
             else:
-                logger.warning(f"Paper init failed: {stderr}")
+                # Try reset first then init
+                self._run(["paper", "reset"])
+                stdout, stderr, code = self._run(["paper", "init", "--balance", "10000", "-o", "json"])
+                logger.info(f"Paper reinit result: {stdout[:100]}")
 
     def test_connection(self) -> tuple:
         """Test if Kraken CLI is working."""
@@ -84,6 +101,8 @@ class KrakenLiveTrader:
 
     def place_market_order(self, pair: str, side: str, volume: float) -> Dict[str, Any]:
         """Place market order — paper or live."""
+        if self.paper_mode:
+            self._ensure_paper_initialized()
         # Normalize pair: XBTUSD -> BTCUSD for paper mode
         paper_pair = pair.replace("XBT", "BTC")
         live_pair = pair
