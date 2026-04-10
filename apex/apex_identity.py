@@ -469,9 +469,6 @@ class APEXIdentity:
             logger.info(f"[RISK PROOF] RiskGate decision: APPROVED - Position within risk parameters")
             logger.info("=" * 60)
 
-                full_message=structured_data
-            )
-
             # Submit
             tx_func = self.risk_router.functions.submitTradeIntent(
                 intent_tuple,
