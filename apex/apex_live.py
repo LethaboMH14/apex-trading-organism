@@ -128,6 +128,14 @@ class APEXLive:
         self._cycle_count += 1
         logger.info(f"Starting APEX Live cycle #{self._cycle_count} - Trade size: ${trade_size}")
 
+        # One-time vault claim on first cycle
+        if self._cycle_count == 1:
+            try:
+                logger.info("Checking vault allocation...")
+                await self.identity.claim_allocation()
+            except Exception as claim_err:
+                logger.warning(f"Vault claim failed: {claim_err}")
+
         try:
             # 1. Get real BTC price
             logger.info("Fetching real BTC price from Kraken REST API...")
