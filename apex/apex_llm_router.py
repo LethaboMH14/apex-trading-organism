@@ -80,6 +80,10 @@ class LLMRouterError(Exception):
         self.error_chain = error_chain or []
 
 
+# Disabled providers set - populated during startup on auth/balance errors
+DISABLED_PROVIDERS = set()
+
+
 # Agent Model Mapping - Primary and Fallback Configurations
 AGENT_MODEL_MAP = {
     "DR_ZARA": {
@@ -465,7 +469,8 @@ class LLMRouter:
                     logger.info("✅ DeepSeek client initialized")
                 except Exception as test_error:
                     if "402" in str(test_error) or "Insufficient Balance" in str(test_error):
-                        logger.warning("⚠️ DeepSeek has insufficient balance — provider skipped")
+                        DISABLED_PROVIDERS.add(LLMProvider.DEEPSEEK)
+                        logger.info("⚠️ DeepSeek has insufficient balance — provider disabled at startup")
                         skipped_providers.append("DeepSeek")
                     else:
                         raise test_error
@@ -570,7 +575,8 @@ class LLMRouter:
                     logger.info("✅ BytePlus client initialized")
                 except Exception as test_error:
                     if "401" in str(test_error) or "AuthenticationError" in str(test_error):
-                        logger.warning("⚠️ BytePlus authentication failed — provider skipped (add funds or check API key)")
+                        DISABLED_PROVIDERS.add(LLMProvider.BYTEPLUS)
+                        logger.info("⚠️ BytePlus authentication failed — provider disabled at startup (add funds or check API key)")
                         skipped_providers.append("BytePlus")
                     else:
                         raise test_error
@@ -800,7 +806,7 @@ class LLMRouter:
         
         # Try primary provider
         primary_provider = agent_config["primary"].provider
-        if primary_provider in self.clients:
+        if primary_provider in self.clients and primary_provider not in DISABLED_PROVIDERS:
             try:
                 result = await self._call_provider(
                     primary_provider,
@@ -819,12 +825,13 @@ class LLMRouter:
                 errors.append(f"Primary {primary_provider.value}: {str(e)}")
                 logger.warning(f"⚠️ {agent_name} primary failed: {e}")
         else:
-            errors.append(f"Primary {primary_provider.value}: not initialized")
-            logger.warning(f"⚠️ {agent_name} primary provider {primary_provider.value} not available")
+            reason = "disabled" if primary_provider in DISABLED_PROVIDERS else "not initialized"
+            errors.append(f"Primary {primary_provider.value}: {reason}")
+            logger.warning(f"⚠️ {agent_name} primary provider {primary_provider.value} {reason}")
         
         # Try fallback provider
         fallback_provider = agent_config["fallback"].provider
-        if fallback_provider in self.clients:
+        if fallback_provider in self.clients and fallback_provider not in DISABLED_PROVIDERS:
             try:
                 result = await self._call_provider(
                     fallback_provider,
