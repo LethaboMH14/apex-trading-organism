@@ -495,30 +495,52 @@ class LLMRouter:
             logger.warning("⚠️ AZURE_OPENAI_API_KEY or AZURE_OPENAI_ENDPOINT not set — provider skipped")
             skipped_providers.append("Azure OpenAI")
         
-        # Google
+        # Google - Key rotation system with 2 API keys
+        self.google_keys = [
+            os.getenv("GOOGLE_API_KEY", ""),
+            os.getenv("GOOGLE_API_KEY_2", ""),
+        ]
+        self.google_key_index = 0
+        self.google_clients = []
+        self.google_api_type = []  # Track which API type each client uses
+
         if GOOGLE_GENAI_AVAILABLE:
-            key = os.getenv("GOOGLE_API_KEY", "")
-            if key and key != "your_key_here" and key.strip():
-                try:
-                    # Try new google.genai API first
-                    import google.genai as genai_new
-                    self.clients[LLMProvider.GOOGLE] = genai_new.Client(api_key=key)
-                    initialized_count += 1
-                    logger.info("✅ Google client initialized (new API)")
-                except Exception as e:
-                    # Fallback to old google.generativeai if available
+            for i, key in enumerate(self.google_keys):
+                if key and key != "your_key_here" and key.strip():
                     try:
-                        import google.generativeai as genai_old
-                        genai_old.configure(api_key=key)
-                        self.clients[LLMProvider.GOOGLE] = genai_old.GenerativeModel('gemini-pro')
-                        initialized_count += 1
-                        logger.info("✅ Google client initialized (old API)")
-                    except Exception as e2:
-                        logger.warning(f"❌ Google client failed to initialize: {e2}")
-                        skipped_providers.append("Google")
-            else:
-                logger.warning("⚠️ GOOGLE_API_KEY not set — provider skipped")
+                        # Try new google.genai API first
+                        import google.genai as genai_new
+                        client = genai_new.Client(api_key=key)
+                        self.google_clients.append(client)
+                        self.google_api_type.append("new")
+                        if i == 0:
+                            self.clients[LLMProvider.GOOGLE] = client
+                            initialized_count += 1
+                            logger.info(f"✅ Google client {i+1} initialized (new API, active)")
+                        else:
+                            logger.info(f"✅ Google client {i+1} initialized (new API, standby)")
+                    except Exception as e:
+                        # Fallback to old google.generativeai if available
+                        try:
+                            import google.generativeai as genai_old
+                            genai_old.configure(api_key=key)
+                            client = genai_old.GenerativeModel('gemini-pro')
+                            self.google_clients.append(client)
+                            self.google_api_type.append("old")
+                            if i == 0:
+                                self.clients[LLMProvider.GOOGLE] = client
+                                initialized_count += 1
+                                logger.info(f"✅ Google client {i+1} initialized (old API, active)")
+                            else:
+                                logger.info(f"✅ Google client {i+1} initialized (old API, standby)")
+                        except Exception as e2:
+                            logger.warning(f"❌ Google client {i+1} failed to initialize: {e2}")
+                else:
+                    logger.warning(f"⚠️ GOOGLE_API_KEY_{i+1 if i > 0 else ''} not set — skipped")
+
+            if not self.google_clients:
                 skipped_providers.append("Google")
+                logger.warning("⚠️ No valid Google API keys — provider skipped")
         else:
             logger.warning("⚠️ Google AI package not available — provider skipped")
             skipped_providers.append("Google")
@@ -652,6 +674,32 @@ class LLMRouter:
                         }
                     except Exception as retry_error:
                         logger.error(f"❌ Groq key rotation failed: {retry_error}")
+                        self.stats["errors"][provider.value] += 1
+                        raise retry_error
+
+            # Handle Google rate limit (429) with key rotation
+            if provider == LLMProvider.GOOGLE and "429" in str(e):
+                if len(self.google_clients) > 1:
+                    self.google_key_index = (self.google_key_index + 1) % len(self.google_clients)
+                    self.clients[LLMProvider.GOOGLE] = self.google_clients[self.google_key_index]
+                    api_type = self.google_api_type[self.google_key_index]
+                    logger.warning(f"🔄 Google rate limit hit - switching to key {self.google_key_index + 1} ({api_type} API)")
+                    # Retry with new key
+                    try:
+                        response = await self._call_google(formatted_messages, config)
+                        latency_ms = int((time.time() - start_time) * 1000)
+                        self.stats["calls"][provider.value] += 1
+                        self.stats["latencies"][provider.value].append(latency_ms)
+                        return {
+                            "response": response,
+                            "provider_used": provider.value,
+                            "model_used": config.model_id,
+                            "latency_ms": latency_ms,
+                            "tokens_used": getattr(response, 'usage', {}).get('total_tokens', 0),
+                            "success": True
+                        }
+                    except Exception as retry_error:
+                        logger.error(f"❌ Google key rotation failed: {retry_error}")
                         self.stats["errors"][provider.value] += 1
                         raise retry_error
 
