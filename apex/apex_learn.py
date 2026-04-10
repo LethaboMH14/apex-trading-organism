@@ -181,30 +181,40 @@ class SignalWeightOptimizer:
         self._current_weights = weights
     
     def optimize(self, performance_data: Dict[str, Any]) -> Dict[str, float]:
-        """Run gradient-free optimization to maximize Sharpe."""
+        """Gradient-free optimization using real attribution data."""
+        attribution = performance_data.get("attribution", {})
+        signal_attribution = attribution.get("signal_source", {})
+        
+        # If we have real attribution data, use it to bias weights
+        keys = list(self._current_weights.keys())
+        base_weights = np.array([self._current_weights[k] for k in keys])
+        
         def objective(weights):
-            # Simulate Sharpe calculation with new weights
+            w = np.abs(weights)
+            w = w / (w.sum() + 1e-8)
             current_sharpe = performance_data.get("current_sharpe", 0.5)
-            # Simple optimization: adjust weights based on performance
-            return -current_sharpe * np.sum(weights * np.array([0.4, 0.3, 0.2, 0.1, 0.0]))
+            # Reward weights that match high-attribution signals
+            attribution_bonus = 0.0
+            for i, key in enumerate(keys):
+                if key in signal_attribution:
+                    attribution_bonus += w[i] * signal_attribution[key]
+            return -(current_sharpe + 0.1 * attribution_bonus)
         
-        # Constraint: weights sum to 1
-        constraints = {"type": "eq", "fun": lambda x: np.sum(x) - 1}
-        bounds = [(0, 1) for _ in range(5)]
+        constraints = {"type": "eq", "fun": lambda x: np.sum(np.abs(x)) - 1}
+        bounds = [(0.0, 0.8) for _ in range(len(keys))]
         
-        # Initial guess
-        x0 = list(self.current_weights.values())
-        
-        # Optimize
-        result = minimize(objective, x0, method="Nelder-Mead", bounds=bounds, constraints=constraints)
+        result = minimize(objective, base_weights, method="SLSQP",
+                         bounds=bounds, constraints=constraints)
         
         if result.success:
-            new_weights = dict(zip(self.current_weights.keys(), result.x))
-            logger.info(f"✅ Optimization successful: {new_weights}")
+            new_w = np.abs(result.x)
+            new_w = new_w / new_w.sum()
+            new_weights = dict(zip(keys, new_w.tolist()))
+            logger.info(f"Signal weights optimized: {new_weights}")
             return new_weights
         else:
-            logger.warning("⚠️ Optimization failed, returning current weights")
-            return self.current_weights
+            logger.warning("Optimization failed — keeping current weights")
+            return self._current_weights
     
     def apply_weights(self, new_weights: Dict[str, float]):
         """Apply new weights after validation."""
@@ -286,15 +296,57 @@ class LearningLoop:
         self.rewriter = StrategyRewriter()
         logger.info("🔄 LearningLoop initialized")
     
+    def load_real_trades(self, filepath: str = "trade_memory.jsonl", n: int = 50) -> List[TradeData]:
+        """Load real trades from trade_memory.jsonl for learning."""
+        import json
+        from pathlib import Path
+        trades = []
+        if not Path(filepath).exists():
+            logger.warning(f"No trade memory file found at {filepath}")
+            return trades
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            prev_price = None
+            for line in lines[-n:]:
+                try:
+                    d = json.loads(line.strip())
+                    entry_price = float(d.get("price", 0))
+                    # Calculate real PnL: positive if price moved in direction of action
+                    if prev_price and entry_price > 0:
+                        price_change = entry_price - prev_price
+                        action = d.get("action", "BUY").upper()
+                        pnl = price_change if action == "BUY" else -price_change
+                    else:
+                        pnl = 0.0
+                    prev_price = entry_price
+                    trades.append(TradeData(
+                        symbol=d.get("pair", "BTC/USD").split("/")[0],
+                        side=d.get("action", "BUY"),
+                        amount=float(d.get("amount_usd", 350)) / max(entry_price, 1),
+                        entry_price=entry_price,
+                        exit_price=entry_price,
+                        pnl=pnl,
+                        timestamp=datetime.fromisoformat(d.get("timestamp", datetime.now().isoformat())),
+                        signal_source=d.get("signal_source", "apex_live"),
+                        confidence=float(d.get("confidence", 0.75))
+                    ))
+                except Exception:
+                    continue
+            logger.info(f"Loaded {len(trades)} real trades for learning")
+        except Exception as e:
+            logger.warning(f"Failed to load trade memory: {e}")
+        return trades
+    
     async def run_daily_optimization(self) -> Dict[str, Any]:
         """Run complete daily optimization cycle."""
         logger.info("🔄 Starting daily optimization")
         
-        # Mock data for demonstration
-        mock_trades = [
-            TradeData("BTC", "BUY", 0.1, 50000, 51000, 100, datetime.now(), "prism_ai", 0.8),
-            TradeData("ETH", "SELL", 1.0, 3000, 2950, 50, datetime.now(), "sentiment", 0.7),
-            TradeData("BTC", "BUY", 0.05, 52000, 51500, -25, datetime.now(), "price_momentum", 0.6)
+        # Load real trades from trade memory
+        real_trades = self.load_real_trades()
+        mock_trades = real_trades if real_trades else [
+            # Fallback only if no real data exists yet
+            TradeData("BTC", "BUY", 0.001, 83000, 83500, 0.5, datetime.now(), "apex_live", 0.75),
         ]
         
         # Calculate current performance
