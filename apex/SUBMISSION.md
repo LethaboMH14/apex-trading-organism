@@ -99,10 +99,14 @@ APEX leverages enterprise-grade Azure services for production reliability and sc
 - **Azure Key Vault (PP-rg-vault)**: Secure storage for all API keys, private keys, and sensitive configuration with automatic rotation and audit logging.
 - **Risk Guardrails API Endpoint**: Production-grade REST API exposing DR. SIPHO's risk gate, circuit breaker state, and approval history for external monitoring and integration. Enables real-time risk visibility for compliance dashboards and third-party audits.
 
-This cloud-native architecture ensures APEX operates with 99.9% uptime, automatic scaling during high-volume periods, and enterprise-grade security suitable for institutional deployment.
+**Live Risk API Endpoint:** https://apex-risk-api.ambitiouspebble-9b46cb11.francecentral.azurecontainerapps.io
 
-=======
->>>>>>> 7104b79fe2a693b23df1ddfad2952721ee506102
+Available endpoints:
+- GET /risk/status - Current circuit breaker and risk status  
+- POST /risk/approve - Submit trade for risk approval
+- POST /risk/trip - Manually trip circuit breaker
+
+This cloud-native architecture ensures APEX operates with 99.9% uptime, automatic scaling during high-volume periods, and enterprise-grade security suitable for institutional deployment.
 CATEGORIES: Finance, ERC-8004, Investment, Agent Builder
 TECHNOLOGIES: CrewAI, LangChain, OpenAI, DeepSeek R1, 
 Anthropic Claude, Groq, Google Gemini, web3.py
