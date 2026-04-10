@@ -602,6 +602,10 @@ class APEXIdentity:
             attestation_json = json.dumps(attestation_data, sort_keys=True)
             checkpoint_hash = Web3.keccak(text=attestation_json)
 
+            # Ensure checkpoint_hash is never zero (contract requires non-zero hash)
+            if checkpoint_hash == b'\x00' * 32:
+                checkpoint_hash = Web3.keccak(text=f"apex-{self.agent_id}-{int(time.time())}")
+
             # Sign with agent key for EIP-712 compliance
             eth_signed = self.agent_account.sign_message(
                 encode_defunct(primitive=checkpoint_hash)
@@ -620,12 +624,12 @@ class APEXIdentity:
             )[:200]
 
             tx_func = self.validation_registry.functions.postAttestation(
-                self.agent_id,
-                checkpoint_hash,
-                score,
-                1,        # ProofType.EIP712
-                b"",      # empty proof bytes
-                notes
+                self.agent_id,          # uint256
+                checkpoint_hash,        # bytes32
+                score,                  # uint8 (0-100)
+                1,                      # ProofType.EIP712 = 1
+                b"",                    # empty bytes proof
+                notes                   # string notes
             )
             try:
                 receipt = self._send_transaction(
