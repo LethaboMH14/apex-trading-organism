@@ -262,7 +262,6 @@ class APEXLive:
                                 drawdown_pct=0.0
                             )
                             logger.info("✅ Validation checkpoint posted")
-                            await asyncio.sleep(3)  # Allow nonce to clear before next tx
                             
                             # Submit reputation feedback to improve reputation score
                             try:

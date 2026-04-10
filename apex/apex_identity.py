@@ -335,13 +335,26 @@ class APEXIdentity:
         print(f"   APEX_AGENT_ID={agent_id}\n")
 
     def _send_transaction(self, tx_func, from_address: str, private_key: str) -> dict:
-        """Build, sign, and send a transaction. Returns receipt."""
-        nonce = self.w3.eth.get_transaction_count(from_address, 'pending')
+        """Build, sign, and send a transaction with nonce management."""
+        import threading
+        if not hasattr(self, '_nonce_lock'):
+            self._nonce_lock = threading.Lock()
+        if not hasattr(self, '_local_nonce'):
+            self._local_nonce = {}
+        
+        with self._nonce_lock:
+            # Always fetch latest confirmed nonce, then track locally
+            chain_nonce = self.w3.eth.get_transaction_count(from_address, 'latest')
+            local = self._local_nonce.get(from_address, 0)
+            nonce = max(chain_nonce, local)
+            self._local_nonce[from_address] = nonce + 1
+        
+        gas_price = int(self.w3.eth.gas_price * 3.5)
         tx = tx_func.build_transaction({
             "from": from_address,
             "nonce": nonce,
             "gas": 2000000,
-            "gasPrice": int(self.w3.eth.gas_price * 3.0),
+            "gasPrice": gas_price,
         })
         signed = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
         tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
@@ -356,7 +369,7 @@ class APEXIdentity:
             )
             return receipt
         except Exception as e:
-            logger.warning(f"TX timeout - may still confirm: {tx_hash.hex()}")
+            logger.warning(f"TX timeout/error: {e} - tx: {tx_hash.hex()}")
             return {"transactionHash": tx_hash, "status": 1, "timeout": True}
 
     async def register_agent(self) -> int:
