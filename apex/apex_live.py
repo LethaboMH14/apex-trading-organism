@@ -250,7 +250,7 @@ class APEXLive:
                     if blockchain_success:
                         logger.info(f"Blockchain submission successful: {tx_hash}")
                         # Wait for chain to process transaction before checkpoint
-                        await asyncio.sleep(15)  # Give chain time to process before checkpoint
+                        await asyncio.sleep(30)  # Give chain time to process before checkpoint
                     else:
                         logger.warning("Blockchain submission failed")
 

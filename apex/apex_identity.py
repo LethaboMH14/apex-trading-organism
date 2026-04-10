@@ -376,6 +376,10 @@ class APEXIdentity:
             signed = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
             tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
 
+            # Let mempool register before next call
+            import time
+            time.sleep(3)
+
         # Wait outside the lock so next call can proceed
         logger.info(f"Transaction submitted: {tx_hash.hex()} - waiting for confirmation...")
         try:
