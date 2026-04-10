@@ -156,12 +156,12 @@ AGENT_MODEL_MAP = {
     },
     "DR_JABARI": {
         "primary": ModelConfig(
-            provider=LLMProvider.BYTEPLUS,
-            model_id="byteplus/sentiment",
+            provider=LLMProvider.AZURE_OPENAI,
+            model_id="gpt-4o",
             max_tokens=2048,
             temperature=0.3,
             timeout_seconds=25,
-            cost_tier="free"
+            cost_tier="moderate"
         ),
         "fallback": ModelConfig(
             provider=LLMProvider.GROQ,
