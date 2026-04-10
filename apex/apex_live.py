@@ -205,8 +205,8 @@ class APEXLive:
                         pair="BTC/USD",
                         action=action,
                         amount_usd=trade_size,
-                        reasoning=reasoning,
-                        confidence=confidence
+                        reasoning=f"BTC ${price:.0f} | Sentiment {sent_score:.0f}/100 | Risk {risk_level} | RL:{action}",
+                        confidence=0.82
                     )
                     tx_hash = blockchain_result.get("tx_hash", "")
                     blockchain_success = blockchain_result.get("success", False)
