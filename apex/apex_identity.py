@@ -647,27 +647,8 @@ class APEXIdentity:
                     except Exception as revert_err:
                         logger.warning(f"Could not fetch revert details: {revert_err}")
             except Exception as e:
-                logger.warning(f"postEIP712Attestation failed (not authorized validator?): {e}")
-                logger.warning("Attempting fallback to ReputationRegistry.submitFeedback()...")
-                
-                # Fallback: try ReputationRegistry.submitFeedback()
-                try:
-                    feedback_tx_func = self.reputation_registry.functions.submitFeedback(
-                        self.agent_id,
-                        min(score, 100),
-                        checkpoint_hash,
-                        notes[:200],  # Use same structured notes
-                        0  # feedbackType=0
-                    )
-                    feedback_receipt = self._send_transaction(
-                        feedback_tx_func, self.operator_address, self.operator_private_key
-                    )
-                    tx_hash = feedback_receipt["transactionHash"].hex()
-                    logger.info(f"Fallback to ReputationRegistry.submitFeedback succeeded: {tx_hash}")
-                except Exception as fallback_err:
-                    logger.warning(f"ReputationRegistry.submitFeedback also failed: {fallback_err}")
-                    logger.warning("Trade still counted as successful, checkpoint will be logged locally")
-                    tx_hash = ""
+                logger.warning(f"postAttestation failed: {e} - skipping fallback")
+                tx_hash = ""
 
             # Append to local audit trail
             log_entry = {
