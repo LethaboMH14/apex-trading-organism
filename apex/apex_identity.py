@@ -499,6 +499,26 @@ class APEXIdentity:
             logger.info(f"[RISK PROOF] RiskGate decision: APPROVED - Position within risk parameters")
             logger.info("=" * 60)
 
+            # EIP-712 sign the intent
+            structured_data = {
+                "domain": {
+                    "name": "RiskRouter",
+                    "version": "1",
+                    "chainId": 11155111,
+                    "verifyingContract": RISK_ROUTER_ADDRESS
+                },
+                "types": {
+                    "TradeIntent": TRADE_INTENT_TYPES["TradeIntent"]
+                },
+                "primaryType": "TradeIntent",
+                "message": intent
+            }
+            signed = self.agent_account.sign_typed_data(
+                domain_data=structured_data["domain"],
+                message_types={"TradeIntent": structured_data["types"]["TradeIntent"]},
+                message_data=structured_data["message"]
+            )
+
             # Submit
             tx_func = self.risk_router.functions.submitTradeIntent(
                 intent_tuple,
