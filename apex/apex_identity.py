@@ -337,30 +337,34 @@ class APEXIdentity:
     def _send_transaction(self, tx_func, from_address: str, private_key: str) -> dict:
         """Build, sign, and send a transaction with nonce management."""
         import threading
-        if not hasattr(self, '_nonce_lock'):
-            self._nonce_lock = threading.Lock()
-        if not hasattr(self, '_local_nonce'):
-            self._local_nonce = {}
+        # Module-level lock and cache for singleton pattern
+        if not hasattr(self.__class__, '_nonce_lock'):
+            self.__class__._nonce_lock = threading.Lock()
+        if not hasattr(self.__class__, '_nonce_cache'):
+            self.__class__._nonce_cache = {}
         
-        with self._nonce_lock:
-            # Always fetch latest confirmed nonce, then track locally
+        with self.__class__._nonce_lock:
+            # Always fetch fresh nonce from chain, never reuse
             chain_nonce = self.w3.eth.get_transaction_count(from_address, 'latest')
-            local = self._local_nonce.get(from_address, 0)
-            nonce = max(chain_nonce, local)
-            self._local_nonce[from_address] = nonce + 1
+            # Use max(chain_nonce, cached+1) to prevent reuse within same second
+            cached = self.__class__._nonce_cache.get(from_address, -1)
+            nonce = max(chain_nonce, cached + 1)
+            self.__class__._nonce_cache[from_address] = nonce
+
+            gas_price = int(self.w3.eth.gas_price * 3)
+            tx = tx_func.build_transaction({
+                "from": from_address,
+                "nonce": nonce,
+                "gas": 2000000,
+                "gasPrice": gas_price,
+            })
+            signed = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
         
-        gas_price = int(self.w3.eth.gas_price * 3.5)
-        tx = tx_func.build_transaction({
-            "from": from_address,
-            "nonce": nonce,
-            "gas": 2000000,
-            "gasPrice": gas_price,
-        })
-        signed = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
+        # Wait outside the lock so next call can proceed
         logger.info(f"Transaction submitted: {tx_hash.hex()} - waiting for confirmation...")
         try:
-            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
             logger.info(
                 f"TX: {tx_hash.hex()} | "
                 f"Block: {receipt['blockNumber']} | "

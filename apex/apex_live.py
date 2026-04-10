@@ -248,6 +248,8 @@ class APEXLive:
 
                     if blockchain_success:
                         logger.info(f"Blockchain submission successful: {tx_hash}")
+                        # Wait for chain to process transaction before checkpoint
+                        await asyncio.sleep(15)  # Give chain time to process before checkpoint
                         # Post validation checkpoint after every successful trade
                         try:
                             checkpoint_reasoning = f"BTC ${price:.0f} | Sentiment {sent_score:.0f}/100 | Risk {risk_level} | Action:{action} | TX:{tx_hash[:16]}"

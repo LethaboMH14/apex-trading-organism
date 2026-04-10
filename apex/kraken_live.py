@@ -48,32 +48,19 @@ class KrakenLiveTrader:
             return "", str(e), 1
 
     def _ensure_paper_initialized(self):
-        """Ensure paper account has sufficient balance."""
-        stdout, stderr, code = self._run(["paper", "balance", "-o", "json"])
-        needs_init = True
-        if code == 0 and stdout:
-            try:
-                data = json.loads(stdout)
-                # Check USD balance
-                usd_balance = float(data.get("USD", data.get("usd", 0)))
-                if usd_balance >= 500:
-                    logger.info(f"Paper account OK: ${usd_balance:.2f} USD available")
-                    needs_init = False
-                else:
-                    logger.warning(f"Paper account low: ${usd_balance:.2f} — reinitializing with $10,000")
-            except Exception:
-                pass
-        
-        if needs_init:
+        """Ensure paper account is initialized - only init if not already set up."""
+        stdout, stderr, code = self._run(["paper", "status"])
+        # Only init if not already set up
+        if "not initialized" in stdout.lower() or code != 0:
             logger.info("Initializing paper trading account with $10,000...")
             stdout, stderr, code = self._run(["paper", "init", "--balance", "10000", "-o", "json"])
             if code == 0:
                 logger.info("Paper account initialized with $10,000 virtual USD")
             else:
-                # Try reset first then init
-                self._run(["paper", "reset"])
-                stdout, stderr, code = self._run(["paper", "init", "--balance", "10000", "-o", "json"])
-                logger.info(f"Paper reinit result: {stdout[:100]}")
+                logger.warning(f"Paper init failed: {stderr}")
+        else:
+            # Silently skip if already initialized — not an error
+            logger.debug("Paper account already initialized")
 
     def test_connection(self) -> tuple:
         """Test if Kraken CLI is working."""
