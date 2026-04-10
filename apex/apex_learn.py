@@ -18,7 +18,6 @@ import asyncio
 import json
 import logging
 import os
-b79fe2a693b23df1ddfad2952721ee506102
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
