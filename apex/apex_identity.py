@@ -322,7 +322,7 @@ class APEXIdentity:
 
     def _send_transaction(self, tx_func, from_address: str, private_key: str) -> dict:
         """Build, sign, and send a transaction. Returns receipt."""
-        nonce = self.w3.eth.get_transaction_count(from_address, 'pending')
+        nonce = self.w3.eth.get_transaction_count(from_address, 'latest')
         tx = tx_func.build_transaction({
             "from": from_address,
             "nonce": nonce,
