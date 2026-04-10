@@ -224,7 +224,7 @@ class CryptoNewsAggregator:
     """
     Crypto News Aggregator - Collects crypto news from multiple sources.
     
-    Fetches news from CoinDesk, Decrypt, and CryptoSlate RSS feeds.
+    Fetches news from CoinDesk, Decrypt, CoinTelegraph, and The Block RSS feeds.
     Filters for symbol mentions and deduplicates by URL. Provides 
     comprehensive coverage of crypto market news.
     """
@@ -234,7 +234,13 @@ class CryptoNewsAggregator:
         self.sources = {
             "coindesk": "https://www.coindesk.com/arc/outbound-rss.xml",
             "decrypt": "https://decrypt.co/feed",
-            "cryptoslate": "https://cryptoslate.com/feed"
+            "cointelegraph": "https://cointelegraph.com/rss",
+            "theblock": "https://www.theblock.co/rss.xml"
+        }
+        
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept-Charset": "utf-8",
         }
         
         logger.info("📰 Crypto News Aggregator initialized")
@@ -255,9 +261,9 @@ class CryptoNewsAggregator:
         
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=30) as response:
+                async with session.get(url, headers=self.headers, timeout=30) as response:
                     if response.status == 200:
-                        content = await response.text()
+                        content = await response.text(encoding='utf-8')
                         
                         # Parse RSS content
                         articles = []
