@@ -309,7 +309,7 @@ class ApexPolicyNetwork(nn.Module):
             torch.nn.utils.clip_grad_norm_(self.parameters(), 0.5)
             self._optimizer.step()
             
-            logger.debug(f"RL updated: action={action_str}, reward={reward:.2f}, loss={loss.item():.4f}")
+            logger.info(f"🧠 RL update #{getattr(self, '_update_count', 0)}: action={action_str}, reward={reward:.2f}, loss={loss.item():.4f}")
             
             # Auto-save checkpoint after every 10 updates
             if not hasattr(self, '_update_count'):
@@ -317,8 +317,11 @@ class ApexPolicyNetwork(nn.Module):
             self._update_count += 1
             if self._update_count % 10 == 0:
                 import os
-                os.makedirs("apex/models", exist_ok=True)
-                self.save_checkpoint("apex/models/policy_network.pt")
+                checkpoint_dir = os.path.join(os.path.dirname(__file__), "models")
+                os.makedirs(checkpoint_dir, exist_ok=True)
+                checkpoint_path = os.path.join(checkpoint_dir, "policy_network.pt")
+                self.save_checkpoint(checkpoint_path)
+                logger.info(f"🔖 RL checkpoint auto-saved at update #{self._update_count} → {checkpoint_path}")
                 
         except Exception as e:
             logger.warning(f"RL update failed: {e}")
@@ -331,7 +334,7 @@ class ApexPolicyNetwork(nn.Module):
             'model_state_dict': self.state_dict(),
             'update_count': getattr(self, '_update_count', 0),
         }, path)
-        logger.info(f"RL policy saved to {path}")
+        logger.info(f"💾 RL checkpoint SAVED: {path} | updates={getattr(self, '_update_count', 0)}")
     
     def load_checkpoint(self, path: str):
         """Load model checkpoint."""
