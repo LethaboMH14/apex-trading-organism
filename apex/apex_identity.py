@@ -364,6 +364,8 @@ class APEXIdentity:
             nonce = max(chain_nonce, cached + 1)
             _LOCAL_NONCE[from_address] = nonce
 
+            logger.info(f"Nonce used: {nonce} | Chain nonce: {chain_nonce} | Cached: {cached}")
+
             gas_price = int(self.w3.eth.gas_price * 3)
             tx = tx_func.build_transaction({
                 "from": from_address,
@@ -373,7 +375,7 @@ class APEXIdentity:
             })
             signed = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
             tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
-        
+
         # Wait outside the lock so next call can proceed
         logger.info(f"Transaction submitted: {tx_hash.hex()} - waiting for confirmation...")
         try:
