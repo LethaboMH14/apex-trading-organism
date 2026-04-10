@@ -408,12 +408,19 @@ class APEXLive:
                 await asyncio.sleep(interval_seconds)
 
 
-async def main():
-    apex = APEXLive()
-    result = await apex.run_cycle(trade_size=350)
-    print("\n=== APEX Live Cycle Result ===")
-    print(json.dumps(result, indent=2, default=str))
-
-
 if __name__ == "__main__":
+    import asyncio
+    
+    async def main():
+        apex = APEXLive()
+        logger.info("Starting continuous trading loop...")
+        while True:
+            try:
+                result = await apex.run_cycle()
+                logger.info(f"Cycle complete: {result.get('success', False)}")
+            except Exception as e:
+                logger.error(f"Cycle error: {e}")
+            logger.info("Waiting 60 seconds before next cycle...")
+            await asyncio.sleep(60)
+    
     asyncio.run(main())
