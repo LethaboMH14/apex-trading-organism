@@ -199,13 +199,18 @@ class APEXLive:
             kraken_order_id = ""
             kraken_success = False
 
-            # Get action from RL policy or fallback
-            market_state = {
-                "price": price,
-                "change_24h": change,
-                "sentiment_score": sent_score
-            }
-            action = self.policy_network.get_action(market_state) if self.policy_network else "BUY"
+            # Determine action: sentiment-primary, RL as tiebreaker for neutral zone
+            if sent_score > 65:
+                action = "BUY"
+                logger.info(f"📈 Action: BUY (sentiment={sent_score:.1f} > 65 threshold)")
+            elif sent_score < 45:
+                action = "SELL"
+                logger.info(f"📉 Action: SELL (sentiment={sent_score:.1f} < 45 threshold)")
+            else:
+                # Neutral zone — use RL policy
+                market_state = {"price": price, "change_24h": change, "sentiment_score": sent_score}
+                action = self.policy_network.get_action(market_state) if self.policy_network else "BUY"
+                logger.info(f"🤖 Action: {action} (RL policy, neutral sentiment={sent_score:.1f})")
 
             if action in ["BUY", "SELL"] and approved:
                 logger.info(f"Submitting {action} trade to blockchain...")
