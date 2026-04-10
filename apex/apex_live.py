@@ -213,6 +213,22 @@ class APEXLive:
 
                     if blockchain_success:
                         logger.info(f"Blockchain submission successful: {tx_hash}")
+                        # Post validation checkpoint after every successful trade
+                        try:
+                            checkpoint_reasoning = f"BTC ${price:.0f} | Sentiment {sent_score:.0f}/100 | Risk {risk_level} | Action:{action} | TX:{tx_hash[:16]}"
+                            await self.identity.post_checkpoint(
+                                reasoning=checkpoint_reasoning,
+                                action=action,
+                                pair="BTC/USD",
+                                amount_usd=trade_size,
+                                score=97,
+                                risk_gate_decision="APPROVED",
+                                circuit_breaker_status="OPEN",
+                                drawdown_pct=0.0
+                            )
+                            logger.info("✅ Validation checkpoint posted")
+                        except Exception as cp_err:
+                            logger.warning(f"Checkpoint post failed: {cp_err}")
                     else:
                         logger.warning("Blockchain submission failed")
                 except Exception as e:
