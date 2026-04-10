@@ -1002,3 +1002,78 @@ cd apex/dashboard && npm run dev
 - UI: DM Sans 400/500
 
 - Data/numbers: JetBrains Mono
+
+---
+
+## Session Update: April 10, 2026 — Full System Testing & Fixes
+
+### What We Did This Session
+
+#### Phase 1: Initial System Test
+Ran apex_live.py for the first time after all previous fixes. Identified:
+- RL policy was initializing but checkpoint never loaded (path was relative, 
+  broke depending on working directory)
+- System was always choosing HOLD — untrained RL policy defaulted to HOLD
+- division by zero error in apex_learn.py compute_drawdown when all PnL = 0
+- Kraken paper orders failing silently (empty error message)
+- CosmosDB initialization crashing with missing credential argument
+- Validation burst hardcoded to count=0 in apex_ws.py (posting nothing)
+
+#### Phase 2: Fixes Applied
+1. **RL Checkpoint path** — changed to __file__-relative path so it resolves 
+   correctly regardless of working directory. Added INFO logging for save/load.
+2. **Always HOLD bug** — replaced raw RL policy decision with sentiment-primary 
+   logic: sentiment > 65 = BUY, < 45 = SELL, neutral zone = RL policy decides
+3. **Division by zero** — added safe_peak guard in compute_drawdown 
+   (np.where(peak == 0, 1e-8, peak))
+4. **Kraken debug logging** — added full stdout/stderr/code logging to diagnose 
+   empty error. Found: paper account only had $174.92 remaining (spent down from 
+   previous sessions)
+5. **CosmosDB** — wrapped init in try/except with proper credential check
+6. **Validation burst** — changed count=0 to count=3 in apex_ws.py
+
+#### Phase 3: After Fixes — System Running Well
+- ✅ BUY action every cycle (sentiment consistently 76/100 = bullish)
+- ✅ Blockchain tx confirmed every cycle (2 txs: trade intent + checkpoint)
+- ✅ RL updates incrementing (#30 → #41+), checkpoint persisting across restarts
+- ✅ Learning loop running every 3 cycles (no more division by zero)
+- ✅ Reputation feedback being submitted (feedbackType fix in progress)
+- ⚠️ Kraken paper orders failing: Insufficient USD balance ($174.92 of $350 needed)
+  — Fix: reinitialize paper account to $10,000 before each order
+- ⚠️ Reputation submitFeedback reverts on-chain: feedbackType=1 rejected
+  — Fix: trying feedbackType=0
+- ⚠️ Nonce collisions when 3 txs fire in same cycle (trade + checkpoint + reputation)
+  — Fix: class-level nonce lock tracking local nonce per address
+
+### Current System Status (End of Session)
+- **Validation Score:** 87 (target 95+) — checkpoints posting score=100 but 
+  average not moving yet, need more successful attestations
+- **Reputation Score:** Not moving — submitFeedback reverting, fix in progress
+- **Agent ID:** 26 | **Leaderboard:** Rank 6
+- **Trades on-chain:** 300+ trade intents submitted
+- **RL Policy:** Checkpoint at update #41, learning from every trade
+- **ETH Balance:** 5.09 ETH (well funded)
+- **Paper Mode:** ACTIVE (PAPER_MODE=true)
+- **Trade action:** BUY every cycle (sentiment 76/100 consistently bullish)
+  — SELL trigger added but requires -0.1% momentum drop between cycles
+
+### Remaining Issues To Fix Next Session
+1. **Reputation submitFeedback reverting** — try feedbackType=0, 2, or check 
+   contract ABI for valid types
+2. **Kraken paper balance** — reinit logic added, needs testing
+3. **Trade variety** — price momentum too small between 60s cycles to trigger SELL.
+   Consider adding ETH/USD or SOL/USD as second pair, or using 4h price data
+4. **Validation score plateau at 87** — need more high-quality attestations. 
+   Consider running post_validation_burst with count=5 on startup
+5. **apex_ws.py CosmosDB** — credential fix applied, needs verification
+
+### Next Session Priority Order
+1. Confirm reputation feedback fix (feedbackType=0) working on-chain
+2. Confirm Kraken paper reinit working ($10,000 balance restored)  
+3. Monitor validation score — should start climbing with clean nonce management
+4. Check leaderboard rank improvement
+5. Begin pitch deck (Gamma.app, 13 slides, content ready in SUBMISSION.md)
+6. Record demo video (dashboard + Etherscan + Risk API)
+
+### Critical Path Remaining
+Reputation fix → Validation score 95+ → Pitch deck → Demo video → Submit
