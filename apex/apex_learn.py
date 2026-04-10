@@ -98,9 +98,11 @@ class PerformanceTracker:
         
         # Calculate drawdown
         peak = np.maximum.accumulate(cumulative_pnl)
-        drawdown = (peak - cumulative_pnl) / peak
-        max_drawdown = np.max(drawdown) if len(drawdown) > 0 else 0.0
-        current_drawdown = drawdown[-1] if len(drawdown) > 0 else 0.0
+        # Guard against division by zero when peak is 0
+        safe_peak = np.where(peak == 0, 1e-8, peak)
+        drawdown = (peak - cumulative_pnl) / safe_peak
+        max_drawdown = float(np.max(drawdown)) if len(drawdown) > 0 else 0.0
+        current_drawdown = float(drawdown[-1]) if len(drawdown) > 0 else 0.0
         
         # Recovery time (periods to recover from max drawdown)
         recovery_time = 0

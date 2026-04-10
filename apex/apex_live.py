@@ -107,7 +107,7 @@ class APEXLive:
                 trade = TradeData(
                     symbol=trade_data.get("pair", "BTC/USD").split("/")[0],
                     side=trade_data.get("action", "BUY"),
-                    amount=trade_data.get("amount_usd", 0) / trade_data.get("price", 1),
+                    amount=trade_data.get("amount_usd", 0) / max(float(trade_data.get("price", 1)), 1.0),
                     entry_price=trade_data.get("price", 0),
                     exit_price=trade_data.get("price", 0),  # Use same price for now
                     pnl=0,  # Will need to calculate from actual trade results
