@@ -619,7 +619,6 @@ class APEXIdentity:
             }
             with open("compliance_log.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps(compliance_entry) + "\n")
-b79fe2a693b23df1ddfad2952721ee506102
             logger.info(f"Checkpoint posted: {tx_hash}")
             return tx_hash
 
