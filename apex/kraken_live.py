@@ -1,230 +1,184 @@
 """
-Kraken Live Trading Interface
-
-Real Kraken CLI integration for live trading execution.
-This handles actual order placement, balance management, and PnL tracking.
-
-Author: ENGR. MARCUS ODUYA - Execution VP at APEX
-Standard: "Every order must be intentional. No ghost trades, no partial fills left open, no missed exits."
+Kraken Live/Paper Trading Interface
+ENGR. MARCUS ODUYA - Execution VP at APEX
+Toggle PAPER_MODE=true in .env for paper trading (no real money needed)
+Toggle PAPER_MODE=false for live trading (requires funded Kraken account)
 """
 
 import subprocess
 import json
 import os
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class KrakenLiveTrader:
-    """
-    Real Kraken trading interface using Kraken CLI.
-    
-    This class provides:
-    - Real order placement via Kraken CLI
-    - Balance management
-    - PnL tracking
-    - Connection testing
-    """
-    
     def __init__(self):
-        """Initialize Kraken live trader."""
-        self.api_key = os.getenv("KRAKEN_API_KEY")
-        self.api_secret = os.getenv("KRAKEN_API_SECRET")
-        # Check if we're running in WSL and use direct path
-        if os.path.exists("/home/userlethabomh14/.cargo/bin/kraken"):
-            self.kraken_cmd = ["/home/userlethabomh14/.cargo/bin/kraken"]
-        else:
-            # Fallback to WSL path
-            self.kraken_cmd = [
-                "wsl", "-e", 
-                "/home/userlethabomh14/.cargo/bin/kraken"
-            ]
+        self.api_key = os.getenv("KRAKEN_API_KEY", "")
+        self.api_secret = os.getenv("KRAKEN_API_SECRET", "")
+        self.paper_mode = os.getenv("PAPER_MODE", "true").lower() == "true"
+        self.kraken_bin = "/home/userlethabomh14/.cargo/bin/kraken"
         
-        logger.info("KrakenLiveTrader initialized")
-        logger.info(f"CLI Path: wsl")
-        logger.info(f"API Key configured: {'Yes' if self.api_key else 'No'}")
-    
-    def _run(self, args):
-        """Run kraken CLI command through WSL"""
-        import subprocess
+        mode = "PAPER" if self.paper_mode else "LIVE"
+        logger.info(f"KrakenLiveTrader initialized | Mode: {mode}")
+        
+        if self.paper_mode:
+            self._ensure_paper_initialized()
+
+    def _run(self, args: list, include_auth: bool = False) -> tuple:
+        """Run kraken CLI via WSL."""
+        cmd = ["wsl", "-e", self.kraken_bin] + args
+        env = dict(os.environ)
+        if include_auth and self.api_key:
+            env["KRAKEN_API_KEY"] = self.api_key
+            env["KRAKEN_API_SECRET"] = self.api_secret
         try:
             result = subprocess.run(
-                self.kraken_cmd + args,
-                capture_output=True, text=True, timeout=30,
-                env={
-                    **os.environ,
-                    "KRAKEN_API_KEY": self.api_key,
-                    "KRAKEN_API_SECRET": self.api_secret
-                }
+                cmd, capture_output=True, text=True,
+                timeout=30, env=env
             )
-            return result.stdout, result.stderr, result.returncode
+            return result.stdout.strip(), result.stderr.strip(), result.returncode
+        except subprocess.TimeoutExpired:
+            return "", "timeout", 1
         except Exception as e:
             return "", str(e), 1
-    
-    def test_connection(self):
+
+    def _ensure_paper_initialized(self):
+        """Initialize paper account with $10,000 if not already set up."""
+        stdout, stderr, code = self._run(["paper", "status", "-o", "json"])
+        if code != 0 or not stdout:
+            logger.info("Initializing paper trading account with $10,000...")
+            stdout, stderr, code = self._run(["paper", "init", "--balance", "10000", "-o", "json"])
+            if code == 0:
+                logger.info("Paper account initialized with $10,000 virtual USD")
+            else:
+                logger.warning(f"Paper init failed: {stderr}")
+
+    def test_connection(self) -> tuple:
+        """Test if Kraken CLI is working."""
         stdout, stderr, code = self._run(["--version"])
-        return code == 0, stdout.strip()
-    
-    def get_balance(self):
-        stdout, stderr, code = self._run(["balance"])
         if code == 0:
+            logger.info(f"Kraken CLI OK: {stdout}")
+            return True, stdout
+        return False, stderr
+
+    def get_balance(self) -> Dict[str, Any]:
+        """Get balance — paper or live."""
+        if self.paper_mode:
+            stdout, stderr, code = self._run(["paper", "balance", "-o", "json"])
+        else:
+            stdout, stderr, code = self._run(["balance", "-o", "json"], include_auth=True)
+        
+        if code == 0 and stdout:
             try:
-                import json
-                return json.loads(stdout)
-            except:
-                return {"raw": stdout}
-        return {"error": stderr}
-    
-    def place_market_order(self, pair, side, volume):
-        """Place real market order"""
-        if side == "buy":
+                data = json.loads(stdout)
+                data["mode"] = "paper" if self.paper_mode else "live"
+                return data
+            except json.JSONDecodeError:
+                return {"raw": stdout, "mode": "paper" if self.paper_mode else "live"}
+        return {"error": stderr, "mode": "paper" if self.paper_mode else "live"}
+
+    def place_market_order(self, pair: str, side: str, volume: float) -> Dict[str, Any]:
+        """Place market order — paper or live."""
+        # Normalize pair: XBTUSD -> BTCUSD for paper mode
+        paper_pair = pair.replace("XBT", "BTC")
+        live_pair = pair
+        
+        # Enforce minimum volume
+        volume = max(round(volume, 6), 0.0001)
+        
+        if self.paper_mode:
             stdout, stderr, code = self._run([
-                "order", "buy", pair, str(volume), "--type", "market", "-o", "json"
-            ])
-        elif side == "sell":
-            stdout, stderr, code = self._run([
-                "order", "sell", pair, str(volume), "--type", "market", "-o", "json"
+                "paper", side.lower(), paper_pair, str(volume), "-o", "json"
             ])
         else:
-            return {"error": f"Invalid side: {side}"}
+            stdout, stderr, code = self._run([
+                "order", side.lower(), live_pair, str(volume),
+                "--type", "market", "-o", "json"
+            ], include_auth=True)
         
-        if code == 0:
+        if code == 0 and stdout:
             try:
-                import json
+                data = json.loads(stdout)
+                data["success"] = True
+                data["mode"] = "paper" if self.paper_mode else "live"
+                logger.info(f"{'[PAPER]' if self.paper_mode else '[LIVE]'} {side.upper()} {volume} {pair}")
+                return data
+            except json.JSONDecodeError:
+                return {"success": True, "raw": stdout, "mode": "paper" if self.paper_mode else "live"}
+        
+        logger.warning(f"Order failed: {stderr}")
+        return {"success": False, "error": stderr, "mode": "paper" if self.paper_mode else "live"}
+
+    def get_paper_status(self) -> Dict[str, Any]:
+        """Get full paper trading status including P&L."""
+        stdout, stderr, code = self._run(["paper", "status", "-o", "json"])
+        if code == 0 and stdout:
+            try:
                 return json.loads(stdout)
-            except:
+            except json.JSONDecodeError:
                 return {"raw": stdout}
         return {"error": stderr}
-    
-    def get_pnl(self) -> Dict[str, Any]:
-        """Get current PnL from trade history."""
-        stdout, stderr, code = self._run(["trades", "history"])
-        if code == 0:
+
+    def get_paper_history(self) -> Dict[str, Any]:
+        """Get paper trade history."""
+        stdout, stderr, code = self._run(["paper", "history", "-o", "json"])
+        if code == 0 and stdout:
             try:
-                import json
-                pnl_data = json.loads(stdout)
-                
-                # Calculate simple PnL from trade history
-                total_pnl = 0.0
-                trade_count = 0
-                
-                if "trades" in pnl_data:
-                    for trade in pnl_data["trades"]:
-                        if "cost" in trade and "fee" in trade:
-                            # Simple PnL calculation (cost + fee)
-                            pnl = float(trade.get("cost", 0)) + float(trade.get("fee", 0))
-                            total_pnl += pnl
-                            trade_count += 1
-                
-                result_data = {
-                    "total_pnl": total_pnl,
-                    "trade_count": trade_count,
-                    "raw_data": pnl_data
-                }
-                
-                logger.info(f"PnL calculated: ${total_pnl:.2f} from {trade_count} trades")
-                return result_data
-            except:
+                return json.loads(stdout)
+            except json.JSONDecodeError:
                 return {"raw": stdout}
         return {"error": stderr}
-    
-    def test_connection(self):
-        """Test if Kraken CLI is working and authenticated."""
-        try:
-            logger.info("Testing Kraken CLI connection...")
-            stdout, stderr, code = self._run(["--version"])
-            
-            if code == 0:
-                version = stdout.strip()
-                logger.info(f"Kraken CLI working: {version}")
-                
-                # Test authentication with balance call
-                balance_test = self.get_balance()
-                if "error" not in balance_test:
-                    logger.info("Kraken API authentication successful")
-                    return True, version
-                else:
-                    logger.warning("CLI working but authentication failed")
-                    return False, version
-            else:
-                logger.error(f"Kraken CLI not working: {stderr}")
-                return False, "CLI not found"
-        except subprocess.TimeoutExpired:
-            logger.error("Kraken CLI test timed out")
-            return False, "Test timed out"
-        except FileNotFoundError:
-            logger.error(f"Kraken CLI not found at: {self.cli_path}")
-            return False, "CLI not found"
-        except Exception as e:
-            logger.error(f"Connection test failed: {e}")
-            return False, "Unknown error"
-    
-    def get_ticker(self, pair: str = "XBTUSD") -> Dict[str, Any]:
-        """Get real-time ticker data."""
-        try:
-            logger.info(f"Fetching ticker for {pair}...")
-            result = subprocess.run(
-                self.kraken_cmd + ["ticker", "--pair", pair],
-                capture_output=True, text=True, timeout=15
-            )
-            
-            if result.returncode == 0:
-                ticker_data = json.loads(result.stdout)
-                logger.info(f"Ticker fetched for {pair}")
-                return ticker_data
-            else:
-                error_msg = f"CLI error: {result.stderr}"
-                logger.error(f"Ticker fetch failed: {error_msg}")
-                return {"error": error_msg}
-                
-        except subprocess.TimeoutExpired:
-            error_msg = "Ticker fetch timed out"
-            logger.error(error_msg)
-            return {"error": error_msg}
-        except json.JSONDecodeError as e:
-            error_msg = f"Invalid JSON response: {e}"
-            logger.error(error_msg)
-            return {"error": error_msg}
-        except Exception as e:
-            error_msg = f"Unexpected error: {e}"
-            logger.error(error_msg)
-            return {"error": error_msg}
+
+    def get_ticker(self, pair: str = "BTCUSD") -> Dict[str, Any]:
+        """Get live ticker — works without auth."""
+        stdout, stderr, code = self._run(["ticker", pair, "-o", "json"])
+        if code == 0 and stdout:
+            try:
+                return json.loads(stdout)
+            except json.JSONDecodeError:
+                return {"raw": stdout}
+        return {"error": stderr}
+
+    def get_pnl(self) -> Dict[str, Any]:
+        """Get PnL from paper or live trade history."""
+        if self.paper_mode:
+            status = self.get_paper_status()
+            return {
+                "mode": "paper",
+                "pnl_data": status,
+                "success": "error" not in status
+            }
+        stdout, stderr, code = self._run(["trades", "history", "-o", "json"], include_auth=True)
+        if code == 0 and stdout:
+            try:
+                return {"mode": "live", "raw": json.loads(stdout), "success": True}
+            except json.JSONDecodeError:
+                return {"mode": "live", "raw": stdout, "success": True}
+        return {"error": stderr, "success": False}
 
 
-# Test function for development
 def test_kraken_connection():
-    """Test Kraken connection and show results."""
-    print("=== Kraken Live Trading Test ===")
-    
     trader = KrakenLiveTrader()
+    print(f"\nMode: {'PAPER' if trader.paper_mode else 'LIVE'}")
     
-    # Test connection
-    print("\n1. Testing connection...")
-    connected = trader.test_connection()
-    print(f"Connected: {connected}")
+    ok, ver = trader.test_connection()
+    print(f"CLI Connected: {ok} ({ver})")
     
-    if connected:
-        # Get balance
-        print("\n2. Getting balance...")
-        balance = trader.get_balance()
-        print(f"Balance: {json.dumps(balance, indent=2)}")
+    balance = trader.get_balance()
+    print(f"Balance: {json.dumps(balance, indent=2)}")
+    
+    if trader.paper_mode:
+        print("\nPlacing test paper BUY order (0.001 BTC)...")
+        order = trader.place_market_order("BTCUSD", "buy", 0.001)
+        print(f"Order result: {json.dumps(order, indent=2)}")
         
-        # Get ticker
-        print("\n3. Getting BTC ticker...")
-        ticker = trader.get_ticker("XBTUSD")
-        print(f"Ticker: {json.dumps(ticker, indent=2)}")
-        
-        # Get PnL
-        print("\n4. Getting PnL...")
-        pnl = trader.get_pnl()
-        print(f"PnL: {json.dumps(pnl, indent=2)}")
-    else:
-        print("Connection failed - skipping further tests")
+        status = trader.get_paper_status()
+        print(f"Paper P&L status: {json.dumps(status, indent=2)}")
 
 
 if __name__ == "__main__":
