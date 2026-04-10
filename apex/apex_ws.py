@@ -235,12 +235,12 @@ class APEXWebSocketServer:
     async def run_validation_burst(self):
         """Run a burst of validation checkpoints on startup."""
         await asyncio.sleep(30)
-        logger.info("  [SCHEDULER] Starting validation burst - posting 0 checkpoints (disabled to save gas)...")
+        logger.info("  [SCHEDULER] Starting validation burst - posting 3 checkpoints...")
         try:
             from apex_live import APEXLive
             apex = APEXLive()
-            count = await apex.post_validation_burst(count=0)
-            logger.info(f"  [SCHEDULER] Validation burst complete: {count}/0 checkpoints posted")
+            count = await apex.post_validation_burst(count=3)
+            logger.info(f"  [SCHEDULER] Validation burst complete: {count}/3 checkpoints posted")
         except Exception as e:
             logger.error(f"  [SCHEDULER] Validation burst failed: {e}")
 

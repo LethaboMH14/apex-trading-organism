@@ -120,8 +120,14 @@ class APEXIndexer:
                 self.cosmos_database = self.cosmos_client.get_database_client("apex-db")
                 self.cosmos_container = self.cosmos_database.get_container_client("apex-events")
                 logger.info("CosmosDB client initialized successfully")
+            except TypeError as e:
+                logger.warning(f"CosmosDB initialization failed (TypeError): {e} - falling back to local file only")
+                self.cosmos_client = None
+                self.cosmos_container = None
             except Exception as e:
                 logger.warning(f"CosmosDB initialization failed: {e} - falling back to local file only")
+                self.cosmos_client = None
+                self.cosmos_container = None
         
         logger.info("APEX Indexer initialized")
         logger.info(f"Connected to Sepolia: {self.w3.is_connected()}")
