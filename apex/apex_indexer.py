@@ -113,21 +113,21 @@ class APEXIndexer:
         # Initialize CosmosDB client (optional - graceful fallback if unavailable)
         self.cosmos_client = None
         self.cosmos_container = None
-        cosmos_connection_string = os.getenv("AZURE_COSMOS_CONNECTION_STRING")
-        if cosmos_connection_string:
-            try:
-                self.cosmos_client = CosmosClient(cosmos_connection_string)
-                self.cosmos_database = self.cosmos_client.get_database_client("apex-db")
-                self.cosmos_container = self.cosmos_database.get_container_client("apex-events")
-                logger.info("CosmosDB client initialized successfully")
-            except TypeError as e:
-                logger.warning(f"CosmosDB initialization failed (TypeError): {e} - falling back to local file only")
-                self.cosmos_client = None
-                self.cosmos_container = None
-            except Exception as e:
-                logger.warning(f"CosmosDB initialization failed: {e} - falling back to local file only")
-                self.cosmos_client = None
-                self.cosmos_container = None
+        try:
+            from azure.cosmos import CosmosClient
+            cosmos_url = os.getenv("COSMOS_URL", "")
+            cosmos_key = os.getenv("COSMOS_KEY", "")
+            if cosmos_url and cosmos_key:
+                self.cosmos_client = CosmosClient(cosmos_url, credential=cosmos_key)
+                db = self.cosmos_client.get_database_client("apex")
+                self.cosmos_container = db.get_container_client("events")
+                logger.info("CosmosDB initialized successfully")
+            else:
+                raise ValueError("COSMOS_URL or COSMOS_KEY not set")
+        except Exception as e:
+            logger.warning(f"CosmosDB initialization failed: {e} - falling back to local file only")
+            self.cosmos_client = None
+            self.cosmos_container = None
         
         logger.info("APEX Indexer initialized")
         logger.info(f"Connected to Sepolia: {self.w3.is_connected()}")
