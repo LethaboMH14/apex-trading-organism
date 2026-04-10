@@ -15,6 +15,7 @@ import requests
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
+from web3 import Web3
 
 # APEX imports
 from apex_data import DataPipeline
@@ -242,6 +243,17 @@ class APEXLive:
                             )
                             logger.info("✅ Validation checkpoint posted")
                             await asyncio.sleep(3)  # Allow nonce to clear before next tx
+                            
+                            # Submit reputation feedback to improve reputation score
+                            try:
+                                outcome_ref = Web3.keccak(text=f"apex-{tx_hash[:16]}-{action}")
+                                await self.identity.submit_reputation_feedback(
+                                    score=95,
+                                    comment=f"APEX A26|{action}|BTC/USD ${price:.0f}|Sentiment {sent_score:.0f}/100|EIP712|PPO-RL|CrewAI|ERC-8004",
+                                    outcome_ref=outcome_ref
+                                )
+                            except Exception as rep_err:
+                                logger.warning(f"Reputation feedback failed: {rep_err}")
                         except Exception as cp_err:
                             logger.warning(f"Checkpoint post failed: {cp_err}")
 
