@@ -262,6 +262,9 @@ class APEXIdentity:
         assert self.operator_address.lower() == expected_operator, \
             f"WRONG OPERATOR KEY! Got {self.operator_address}, expected 0x909375eC03d6A001A95Bcf20E2260d671a84140B"
 
+        # Load agent ID from environment variable
+        self.agent_id = int(os.getenv("APEX_AGENT_ID", "26"))
+
     def _load_agent_id(self) -> int:
         """Load agent ID from env or local file."""
         # Try env first
