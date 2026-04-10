@@ -200,18 +200,38 @@ class APEXLive:
             kraken_order_id = ""
             kraken_success = False
 
-            # Determine action: sentiment-primary, RL as tiebreaker for neutral zone
-            if sent_score > 65:
-                action = "BUY"
-                logger.info(f"📈 Action: BUY (sentiment={sent_score:.1f} > 65 threshold)")
-            elif sent_score < 45:
-                action = "SELL"
-                logger.info(f"📉 Action: SELL (sentiment={sent_score:.1f} < 45 threshold)")
+            # Determine action: sentiment + momentum combined signal
+            # Price change is +0.00% currently because Kraken p[1] returns 0 - use rolling calc
+            # Calculate rolling momentum from last 2 cycle prices instead
+            if not hasattr(self, '_price_history'):
+                self._price_history = []
+            self._price_history.append(price)
+            if len(self._price_history) > 5:
+                self._price_history.pop(0)
+            
+            # Calculate short-term momentum from price history
+            if len(self._price_history) >= 2:
+                price_momentum = (self._price_history[-1] - self._price_history[0]) / self._price_history[0] * 100
             else:
-                # Neutral zone — use RL policy
-                market_state = {"price": price, "change_24h": change, "sentiment_score": sent_score}
+                price_momentum = change  # fallback to 24h change
+
+            logger.info(f"Price momentum (rolling): {price_momentum:+.3f}%")
+
+            # Combined signal logic
+            if sent_score > 65 and price_momentum >= -0.05:
+                action = "BUY"
+                logger.info(f"📈 Action: BUY (sentiment={sent_score:.1f}, momentum={price_momentum:+.3f}%)")
+            elif sent_score < 45 or price_momentum < -0.1:
+                action = "SELL"
+                logger.info(f"📉 Action: SELL (sentiment={sent_score:.1f}, momentum={price_momentum:+.3f}%)")
+            elif sent_score > 65 and price_momentum < -0.1:
+                # Sentiment bullish but price dropping - mean reversion SELL
+                action = "SELL"
+                logger.info(f"📉 Action: SELL (mean-reversion: sentiment={sent_score:.1f} but momentum={price_momentum:+.3f}%)")
+            else:
+                market_state = {"price": price, "change_24h": price_momentum, "sentiment_score": sent_score}
                 action = self.policy_network.get_action(market_state) if self.policy_network else "BUY"
-                logger.info(f"🤖 Action: {action} (RL policy, neutral sentiment={sent_score:.1f})")
+                logger.info(f"🤖 Action: {action} (RL policy, neutral zone)")
 
             if action in ["BUY", "SELL"] and approved:
                 logger.info(f"Submitting {action} trade to blockchain...")
