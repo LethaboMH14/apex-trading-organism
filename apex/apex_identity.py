@@ -340,7 +340,7 @@ class APEXIdentity:
         tx = tx_func.build_transaction({
             "from": from_address,
             "nonce": nonce,
-            "gas": 500000,
+            "gas": 2000000,
             "gasPrice": int(self.w3.eth.gas_price * 3.0),
         })
         signed = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
