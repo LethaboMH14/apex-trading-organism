@@ -264,17 +264,6 @@ class APEXLive:
                                 drawdown_pct=0.0
                             )
                             logger.info("✅ Validation checkpoint posted")
-                            
-                            # Submit reputation feedback to improve reputation score
-                            try:
-                                outcome_ref = Web3.keccak(text=f"apex-{tx_hash[:16]}-{action}")
-                                await self.identity.submit_reputation_feedback(
-                                    score=95,
-                                    comment=f"APEX A26|{action}|BTC/USD ${price:.0f}|Sentiment {sent_score:.0f}/100|EIP712|PPO-RL|CrewAI|ERC-8004",
-                                    outcome_ref=outcome_ref
-                                )
-                            except Exception as rep_err:
-                                logger.warning(f"Reputation feedback failed: {rep_err}")
                         except Exception as cp_err:
                             logger.warning(f"Checkpoint post failed: {cp_err}")
 

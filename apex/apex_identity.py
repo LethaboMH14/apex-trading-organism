@@ -709,34 +709,6 @@ class APEXIdentity:
             logger.error(f"post_checkpoint failed: {e}")
             return ""
 
-    async def submit_reputation_feedback(self, score: int = 95, comment: str = "", outcome_ref: bytes = None) -> str:
-        """Submit feedback to ReputationRegistry to improve reputation score."""
-        if not self.agent_id:
-            return ""
-        try:
-            import uuid
-            if outcome_ref is None:
-                outcome_ref = Web3.keccak(text=f"apex-{self.agent_id}-{uuid.uuid4().hex[:8]}")
-            
-            feedback_comment = comment[:200] if comment else f"APEX Agent 26 | BUY BTC/USD | EIP712 | PPO-RL | Sharpe-opt | CrewAI | 8xAI agents | ERC-8004 compliant"
-            
-            tx_func = self.reputation_registry.functions.submitFeedback(
-                self.agent_id,      # agentId uint256
-                score,              # score uint8 (0-100)
-                outcome_ref,        # outcomeRef bytes32
-                feedback_comment,   # comment string
-                0                   # feedbackType uint8: 0 = performance (try 0 first, then 2 if still failing)
-            )
-            receipt = self._send_transaction(
-                tx_func, self.operator_address, self.operator_private_key
-            )
-            tx_hash = receipt["transactionHash"].hex()
-            logger.info(f"✅ Reputation feedback submitted: score={score} | tx={tx_hash}")
-            return tx_hash
-        except Exception as e:
-            logger.warning(f"submit_reputation_feedback failed: {e}")
-            return ""
-
     async def get_reputation_score(self) -> float:
         """Get current reputation score from ReputationRegistry."""
         if not self.agent_id:

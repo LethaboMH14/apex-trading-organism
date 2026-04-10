@@ -22,11 +22,12 @@ class KrakenLiveTrader:
         self.api_secret = os.getenv("KRAKEN_API_SECRET", "")
         self.paper_mode = os.getenv("PAPER_MODE", "true").lower() == "true"
         self.kraken_bin = "/home/userlethabomh14/.cargo/bin/kraken"
+        self._paper_initialized = False
         
         mode = "PAPER" if self.paper_mode else "LIVE"
         logger.info(f"KrakenLiveTrader initialized | Mode: {mode}")
         
-        if self.paper_mode:
+        if self.paper_mode and not self._paper_initialized:
             self._ensure_paper_initialized()
 
     def _run(self, args: list, include_auth: bool = False) -> tuple:
@@ -39,7 +40,7 @@ class KrakenLiveTrader:
         try:
             result = subprocess.run(
                 cmd, capture_output=True, text=True,
-                timeout=30, env=env
+                timeout=30, env=env, encoding='utf-8', errors='replace'
             )
             return result.stdout.strip(), result.stderr.strip(), result.returncode
         except subprocess.TimeoutExpired:
@@ -50,17 +51,26 @@ class KrakenLiveTrader:
     def _ensure_paper_initialized(self):
         """Ensure paper account is initialized - only init if not already set up."""
         stdout, stderr, code = self._run(["paper", "status"])
+        
+        # Check if already initialized by looking for balance data or "already initialized" message
+        if code == 0 and ("balance" in stdout.lower() or "initialized" in stdout.lower() or "usd" in stdout.lower()):
+            logger.info("Paper account already initialized - skipping init")
+            self._paper_initialized = True
+            return
+        
         # Only init if not already set up
         if "not initialized" in stdout.lower() or code != 0:
             logger.info("Initializing paper trading account with $10,000...")
             stdout, stderr, code = self._run(["paper", "init", "--balance", "10000", "-o", "json"])
             if code == 0:
                 logger.info("Paper account initialized with $10,000 virtual USD")
+                self._paper_initialized = True
             else:
                 logger.warning(f"Paper init failed: {stderr}")
         else:
             # Silently skip if already initialized — not an error
             logger.debug("Paper account already initialized")
+            self._paper_initialized = True
 
     def test_connection(self) -> tuple:
         """Test if Kraken CLI is working."""
@@ -88,8 +98,6 @@ class KrakenLiveTrader:
 
     def place_market_order(self, pair: str, side: str, volume: float) -> Dict[str, Any]:
         """Place market order — paper or live."""
-        if self.paper_mode:
-            self._ensure_paper_initialized()
         # Normalize pair: XBTUSD -> BTCUSD for paper mode
         paper_pair = pair.replace("XBT", "BTC")
         live_pair = pair
