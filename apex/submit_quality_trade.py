@@ -5,7 +5,8 @@ from apex_identity import APEXIdentity
 
 async def main():
     try:
-        identity = APEXIdentity()
+        from apex_identity import get_apex_identity
+        identity = get_apex_identity()
         
         print("APEX Quality Trade Submission")
         print("=" * 50)

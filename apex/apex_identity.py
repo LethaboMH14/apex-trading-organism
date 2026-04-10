@@ -8,6 +8,7 @@ import os
 import json
 import time
 import logging
+import threading
 from datetime import datetime
 from pathlib import Path
 from apex_memory import log_trade
@@ -18,6 +19,24 @@ from eth_account.messages import encode_defunct
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+
+# ============================================================
+# MODULE-LEVEL NONCE MANAGEMENT (shared across all instances)
+# ============================================================
+_NONCE_LOCK = threading.Lock()
+_LOCAL_NONCE = {}  # address -> last used nonce
+
+# ============================================================
+# SINGLETON PATTERN FOR APEX IDENTITY
+# ============================================================
+_IDENTITY_INSTANCE = None
+
+def get_apex_identity():
+    """Get the singleton APEXIdentity instance."""
+    global _IDENTITY_INSTANCE
+    if _IDENTITY_INSTANCE is None:
+        _IDENTITY_INSTANCE = APEXIdentity()
+    return _IDENTITY_INSTANCE
 
 # ============================================================
 # SHARED HACKATHON CONTRACT ADDRESSES
@@ -336,20 +355,14 @@ class APEXIdentity:
 
     def _send_transaction(self, tx_func, from_address: str, private_key: str) -> dict:
         """Build, sign, and send a transaction with nonce management."""
-        import threading
-        # Module-level lock and cache for singleton pattern
-        if not hasattr(self.__class__, '_nonce_lock'):
-            self.__class__._nonce_lock = threading.Lock()
-        if not hasattr(self.__class__, '_nonce_cache'):
-            self.__class__._nonce_cache = {}
-        
-        with self.__class__._nonce_lock:
+        # Use module-level lock and cache for true singleton pattern across all instances
+        with _NONCE_LOCK:
             # Always fetch fresh nonce from chain, never reuse
             chain_nonce = self.w3.eth.get_transaction_count(from_address, 'latest')
             # Use max(chain_nonce, cached+1) to prevent reuse within same second
-            cached = self.__class__._nonce_cache.get(from_address, -1)
+            cached = _LOCAL_NONCE.get(from_address, -1)
             nonce = max(chain_nonce, cached + 1)
-            self.__class__._nonce_cache[from_address] = nonce
+            _LOCAL_NONCE[from_address] = nonce
 
             gas_price = int(self.w3.eth.gas_price * 3)
             tx = tx_func.build_transaction({
@@ -753,7 +766,7 @@ class APEXIdentity:
 # CONVENIENCE FUNCTIONS
 # ============================================================
 async def register_agent() -> int:
-    identity = APEXIdentity()
+    identity = get_apex_identity()
     return await identity.register_agent()
 
 
@@ -764,14 +777,14 @@ async def submit_trade(
     reasoning: str,
     confidence: int = 75
 ) -> dict:
-    identity = APEXIdentity()
+    identity = get_apex_identity()
     return await identity.submit_trade_intent(
         pair, action, amount_usd, reasoning, confidence
     )
 
 
 async def get_status() -> dict:
-    identity = APEXIdentity()
+    identity = get_apex_identity()
     return await identity.get_status()
 
 
@@ -782,7 +795,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     async def main():
-        identity = APEXIdentity()
+        identity = get_apex_identity()
         status = await identity.get_status()
         print("\n📊 APEX Status:")
         for k, v in status.items():

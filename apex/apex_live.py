@@ -52,7 +52,8 @@ class APEXLive:
         self.circuit_breaker = CircuitBreaker(self.risk_params)
         self.risk_gate = RiskGate(self.risk_params, self.circuit_breaker)
         self.llm_router = LLMRouter()
-        self.identity = APEXIdentity()
+        from apex_identity import get_apex_identity
+        self.identity = get_apex_identity()
         self.kraken_trader = KrakenLiveTrader()
         self._cycle_count = 0
 

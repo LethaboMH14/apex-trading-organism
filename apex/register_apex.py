@@ -35,7 +35,8 @@ async def main():
     try:
         # Initialize APEX Identity
         print("🔧 Initializing APEX Identity...")
-        identity = APEXIdentity()
+        from apex_identity import get_apex_identity
+        identity = get_apex_identity()
         
         # Check if already registered
         if identity.agent_id > 0:

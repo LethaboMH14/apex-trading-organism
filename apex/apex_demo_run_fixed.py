@@ -94,7 +94,8 @@ class APEXDemonstration:
             print("   AI Provider Router: ONLINE")
             
             print("5. Initializing Identity Agent (DR. PRIYA NAIR)...")
-            self.identity_agent = APEXIdentity()
+            from apex_identity import get_apex_identity
+            self.identity_agent = get_apex_identity()
             print("   ERC-8004 On-Chain Agent: ONLINE")
             
             print("\n=== ALL APEX AGENTS ONLINE ===")
