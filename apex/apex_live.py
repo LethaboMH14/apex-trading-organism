@@ -190,6 +190,14 @@ class APEXLive:
             kraken_order_id = ""
             kraken_success = False
 
+            # Get action from RL policy or fallback
+            market_state = {
+                "price": price,
+                "change_24h": change,
+                "sentiment_score": sent_score
+            }
+            action = self.rl_policy.get_action(market_state) if hasattr(self, 'rl_policy') and self.rl_policy else "BUY"
+
             if action in ["BUY", "SELL"] and approved:
                 logger.info(f"Submitting {action} trade to blockchain...")
                 try:
