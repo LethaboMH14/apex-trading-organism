@@ -357,22 +357,37 @@ class LLMRouter:
             logger.warning("⚠️ OPENROUTER_API_KEY not set — provider skipped")
             skipped_providers.append("OpenRouter")
         
-        # Groq
-        key = os.getenv("GROQ_API_KEY", "")
-        if key and key != "your_key_here" and key.strip():
-            try:
-                self.clients[LLMProvider.GROQ] = openai.AsyncOpenAI(
-                    base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
-                    api_key=key
-                )
-                initialized_count += 1
-                logger.info("✅ Groq client initialized")
-            except Exception as e:
-                logger.warning(f"❌ Groq client failed to initialize: {e}")
-                skipped_providers.append("Groq")
-        else:
-            logger.warning("⚠️ GROQ_API_KEY not set — provider skipped")
+        # Groq - Key rotation system with 3 API keys
+        self.groq_keys = [
+            os.getenv("GROQ_API_KEY", ""),
+            os.getenv("GROQ_API_KEY_2", ""),
+            os.getenv("GROQ_API_KEY_3", ""),
+        ]
+        self.groq_key_index = 0
+        self.groq_clients = []
+
+        for i, key in enumerate(self.groq_keys):
+            if key and key != "your_key_here" and key.strip():
+                try:
+                    client = openai.AsyncOpenAI(
+                        base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
+                        api_key=key
+                    )
+                    self.groq_clients.append(client)
+                    if i == 0:
+                        self.clients[LLMProvider.GROQ] = client
+                        initialized_count += 1
+                        logger.info(f"✅ Groq client {i+1} initialized (active)")
+                    else:
+                        logger.info(f"✅ Groq client {i+1} initialized (standby)")
+                except Exception as e:
+                    logger.warning(f"❌ Groq client {i+1} failed to initialize: {e}")
+            else:
+                logger.warning(f"⚠️ GROQ_API_KEY_{i+1 if i > 0 else ''} not set — skipped")
+
+        if not self.groq_clients:
             skipped_providers.append("Groq")
+            logger.warning("⚠️ No valid Groq API keys — provider skipped")
         
         # SambaNova
         key = os.getenv("SAMBANOVA_API_KEY", "")
@@ -615,6 +630,31 @@ class LLMRouter:
             self.stats["errors"][provider.value] += 1
             raise Exception(f"Timeout after {config.timeout_seconds}s")
         except Exception as e:
+            # Handle Groq rate limit (429) with key rotation
+            if provider == LLMProvider.GROQ and "429" in str(e):
+                if len(self.groq_clients) > 1:
+                    self.groq_key_index = (self.groq_key_index + 1) % len(self.groq_clients)
+                    self.clients[LLMProvider.GROQ] = self.groq_clients[self.groq_key_index]
+                    logger.warning(f"🔄 Groq rate limit hit - switching to key {self.groq_key_index + 1}")
+                    # Retry with new key
+                    try:
+                        response = await self._call_openai_compatible(provider, formatted_messages, config)
+                        latency_ms = int((time.time() - start_time) * 1000)
+                        self.stats["calls"][provider.value] += 1
+                        self.stats["latencies"][provider.value].append(latency_ms)
+                        return {
+                            "response": response,
+                            "provider_used": provider.value,
+                            "model_used": config.model_id,
+                            "latency_ms": latency_ms,
+                            "tokens_used": getattr(response, 'usage', {}).get('total_tokens', 0),
+                            "success": True
+                        }
+                    except Exception as retry_error:
+                        logger.error(f"❌ Groq key rotation failed: {retry_error}")
+                        self.stats["errors"][provider.value] += 1
+                        raise retry_error
+
             self.stats["errors"][provider.value] += 1
             raise e
     
