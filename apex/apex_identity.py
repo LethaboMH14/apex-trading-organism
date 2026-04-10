@@ -647,7 +647,7 @@ class APEXIdentity:
                     except Exception as revert_err:
                         logger.warning(f"Could not fetch revert details: {revert_err}")
             except Exception as e:
-                logger.warning(f"postAttestation failed: {e} - skipping fallback")
+                logger.warning(f"postAttestation failed: {e}")
                 tx_hash = ""
 
             # Append to local audit trail
