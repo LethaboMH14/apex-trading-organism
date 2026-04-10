@@ -218,8 +218,8 @@ class ApexPolicyNetwork(nn.Module):
         
         return logits, value
     
-    def get_action(self, state: torch.Tensor) -> Tuple[int, torch.Tensor, torch.Tensor]:
-        """Get action from policy network."""
+    def get_action_tensor(self, state: torch.Tensor) -> Tuple[int, torch.Tensor, torch.Tensor]:
+        """Get action from policy network (original tensor-based method)."""
         logits, value = self.forward(state)
         probs = F.softmax(logits, dim=-1)
         
@@ -228,19 +228,117 @@ class ApexPolicyNetwork(nn.Module):
         
         return action, probs, value
     
+    def get_action(self, market_state: dict) -> str:
+        """
+        Called from apex_live.py with a market state dict.
+        Returns "BUY", "SELL", or "HOLD" as a string.
+        market_state keys: price, change_24h, sentiment_score
+        """
+        try:
+            # Normalize inputs to [-1, 1] range
+            price_momentum = float(market_state.get("change_24h", 0)) / 10.0
+            sentiment = (float(market_state.get("sentiment_score", 50)) - 50) / 50.0
+            price_norm = 0.0  # relative, no absolute reference needed
+            
+            # Build 8-dim state vector (pad with zeros for unused dims)
+            state_vec = np.array([
+                np.clip(price_momentum, -1, 1),
+                np.clip(sentiment, -1, 1),
+                0.0,  # prism_signal (not available here)
+                0.0,  # volume_anomaly
+                0.0,  # on_chain_signal
+                0.0,  # current_position
+                0.0,  # unrealized_pnl
+                0.0   # time_of_day
+            ], dtype=np.float32)
+            
+            state_tensor = torch.FloatTensor(state_vec).unsqueeze(0)
+            
+            with torch.no_grad():
+                logits, _ = self.forward(state_tensor)
+                probs = torch.softmax(logits, dim=-1).squeeze()
+            
+            action_idx = torch.argmax(probs).item()
+            # Map: 0=HOLD, 1=BUY, 2=SELL, 3=HOLD (close maps to HOLD)
+            action_map = {0: "HOLD", 1: "BUY", 2: "SELL", 3: "HOLD"}
+            action = action_map.get(action_idx, "BUY")
+            
+            logger.debug(f"RL action: {action} (probs: {probs.tolist()})")
+            return action
+        except Exception as e:
+            logger.warning(f"RL get_action failed: {e} — defaulting to BUY")
+            return "BUY"
+    
+    def update(self, trade_outcome: dict):
+        """
+        Called after each trade to do a lightweight online update.
+        trade_outcome keys: action, price, sentiment, success
+        """
+        try:
+            # Build state from outcome
+            sentiment = float(trade_outcome.get("sentiment", 50))
+            change = float(trade_outcome.get("change_24h", 0))
+            state_vec = np.array([
+                np.clip(change / 10.0, -1, 1),
+                np.clip((sentiment - 50) / 50.0, -1, 1),
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            ], dtype=np.float32)
+            
+            state_tensor = torch.FloatTensor(state_vec).unsqueeze(0)
+            
+            # Reward: +1 if trade succeeded, -0.5 if failed
+            reward = 1.0 if trade_outcome.get("success", False) else -0.5
+            
+            # Action index
+            action_str = trade_outcome.get("action", "BUY")
+            action_idx = {"HOLD": 0, "BUY": 1, "SELL": 2}.get(action_str, 1)
+            
+            # Simple policy gradient update
+            if not hasattr(self, '_optimizer'):
+                self._optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+            
+            logits, value = self.forward(state_tensor)
+            probs = torch.softmax(logits, dim=-1)
+            log_prob = torch.log(probs[0, action_idx] + 1e-8)
+            
+            # Policy gradient loss: -log_prob * reward
+            loss = -log_prob * reward
+            
+            self._optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), 0.5)
+            self._optimizer.step()
+            
+            logger.debug(f"RL updated: action={action_str}, reward={reward:.2f}, loss={loss.item():.4f}")
+            
+            # Auto-save checkpoint after every 10 updates
+            if not hasattr(self, '_update_count'):
+                self._update_count = 0
+            self._update_count += 1
+            if self._update_count % 10 == 0:
+                import os
+                os.makedirs("apex/models", exist_ok=True)
+                self.save_checkpoint("apex/models/policy_network.pt")
+                
+        except Exception as e:
+            logger.warning(f"RL update failed: {e}")
+    
     def save_checkpoint(self, path: str):
         """Save model checkpoint."""
+        import os
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         torch.save({
             'model_state_dict': self.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict() if hasattr(self, 'optimizer') else None
+            'update_count': getattr(self, '_update_count', 0),
         }, path)
-        logger.info(f"💾 Model saved to {path}")
+        logger.info(f"RL policy saved to {path}")
     
     def load_checkpoint(self, path: str):
         """Load model checkpoint."""
-        checkpoint = torch.load(path, map_location='cpu')
+        checkpoint = torch.load(path, map_location='cpu', weights_only=True)
         self.load_state_dict(checkpoint['model_state_dict'])
-        logger.info(f"📂 Model loaded from {path}")
+        self._update_count = checkpoint.get('update_count', 0)
+        logger.info(f"RL policy loaded from {path} (updates: {self._update_count})")
 
 
 class PPOTrainer:
@@ -304,7 +402,7 @@ class PPOTrainer:
             
             for step in range(self.env.max_steps):
                 state_tensor = torch.FloatTensor(state).unsqueeze(0)
-                action, probs, value = self.policy.get_action(state_tensor)
+                action, probs, value = self.policy.get_action_tensor(state_tensor)
                 
                 next_state, reward, done, info = self.env.step(action)
                 
