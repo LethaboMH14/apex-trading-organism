@@ -286,7 +286,11 @@ class APEXIdentity:
             address=Web3.to_checksum_address(VALIDATION_REGISTRY_ADDRESS),
             abi=VALIDATION_REGISTRY_ABI
         )
-        
+        self.hackathon_vault = self.w3.eth.contract(
+            address=Web3.to_checksum_address(HACKATHON_VAULT_ADDRESS),
+            abi=HACKATHON_VAULT_ABI
+        )
+
         logger.info(f"APEXIdentity initialized | Agent ID: {self.agent_id} | Connected: {self.w3.is_connected()}")
 
     def _load_agent_id(self) -> int:
@@ -323,13 +327,13 @@ class APEXIdentity:
             "from": from_address,
             "nonce": nonce,
             "gas": 500000,
-            "gasPrice": self.w3.eth.gas_price,
+            "gasPrice": int(self.w3.eth.gas_price * 1.5),
         })
         signed = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
         tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
         logger.info(f"Transaction submitted: {tx_hash.hex()} - waiting for confirmation...")
         try:
-            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
             logger.info(
                 f"TX: {tx_hash.hex()} | "
                 f"Block: {receipt['blockNumber']} | "
