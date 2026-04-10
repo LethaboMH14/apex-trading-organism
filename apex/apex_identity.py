@@ -162,6 +162,20 @@ VALIDATION_REGISTRY_ABI = [
             {"name": "agentId",        "type": "uint256"},
             {"name": "checkpointHash", "type": "bytes32"},
             {"name": "score",          "type": "uint8"},
+            {"name": "proofType",      "type": "uint8"},
+            {"name": "proof",          "type": "bytes"},
+            {"name": "notes",          "type": "string"}
+        ],
+        "name": "postAttestation",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {"name": "agentId",        "type": "uint256"},
+            {"name": "checkpointHash", "type": "bytes32"},
+            {"name": "score",          "type": "uint8"},
             {"name": "notes",          "type": "string"}
         ],
         "name": "postEIP712Attestation",
@@ -605,10 +619,12 @@ class APEXIdentity:
                 f"Reasoning:{reasoning[:80]}"
             )[:200]
 
-            tx_func = self.validation_registry.functions.postEIP712Attestation(
+            tx_func = self.validation_registry.functions.postAttestation(
                 self.agent_id,
                 checkpoint_hash,
                 score,
+                1,        # ProofType.EIP712
+                b"",      # empty proof bytes
                 notes
             )
             try:
