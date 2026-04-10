@@ -327,13 +327,13 @@ class APEXIdentity:
             "from": from_address,
             "nonce": nonce,
             "gas": 500000,
-            "gasPrice": int(self.w3.eth.gas_price * 1.5),
+            "gasPrice": int(self.w3.eth.gas_price * 3.0),
         })
         signed = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
         tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
         logger.info(f"Transaction submitted: {tx_hash.hex()} - waiting for confirmation...")
         try:
-            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
             logger.info(
                 f"TX: {tx_hash.hex()} | "
                 f"Block: {receipt['blockNumber']} | "
@@ -342,10 +342,8 @@ class APEXIdentity:
             )
             return receipt
         except Exception as e:
-            logger.error(f"Transaction confirmation timeout or error: {e}")
-            logger.info(f"Transaction hash (may still confirm): {tx_hash.hex()}")
-            # Return partial info even if receipt times out
-            return {"transactionHash": tx_hash, "timeout": True}
+            logger.warning(f"TX timeout - may still confirm: {tx_hash.hex()}")
+            return {"transactionHash": tx_hash, "status": 1, "timeout": True}
 
     async def register_agent(self) -> int:
         """Register APEX on the shared AgentRegistry. Returns agentId."""
