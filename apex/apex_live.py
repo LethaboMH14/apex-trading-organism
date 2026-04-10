@@ -77,12 +77,13 @@ class APEXLive:
         try:
             self.policy_network = ApexPolicyNetwork()
             # Try to load saved policy
-            import os
-            if os.path.exists("apex/models/policy_network.pt"):
-                self.policy_network.load_checkpoint("apex/models/policy_network.pt")
-                logger.info("APEX RL policy loaded from checkpoint")
+            import os as _os
+            _ckpt = _os.path.join(_os.path.dirname(__file__), "models", "policy_network.pt")
+            if _os.path.exists(_ckpt):
+                self.policy_network.load_checkpoint(_ckpt)
+                logger.info(f"✅ RL checkpoint loaded: {_ckpt}")
             else:
-                logger.info("APEX RL policy initialized (no checkpoint found)")
+                logger.info(f"⚠️ No RL checkpoint found at {_ckpt} — starting fresh")
         except Exception as e:
             logger.warning(f"RL policy initialization failed: {e} - will use rule-based fallback")
 
