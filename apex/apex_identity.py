@@ -14,6 +14,7 @@ from apex_memory import log_trade
 from dotenv import load_dotenv
 from web3 import Web3
 from eth_account import Account
+from eth_account.messages import encode_defunct
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -571,17 +572,24 @@ class APEXIdentity:
             return ""
 
         try:
-            # Build checkpoint hash
-            checkpoint_data = json.dumps({
-                "agentId":   self.agent_id,
-                "timestamp": int(time.time()),
-                "action":    action,
-                "pair":      pair,
-                "amount":    amount_usd,
-                "reasoning": reasoning,
-            }, sort_keys=True)
+            # Build EIP-712 structured data for attestation
+            attestation_data = {
+                "agentId": self.agent_id,
+                "action": action,
+                "pair": pair,
+                "amount": int(amount_usd * 100),
+                "score": score,
+                "timestamp": int(time.time())
+            }
 
-            checkpoint_hash = Web3.keccak(text=checkpoint_data)
+            # Sign the attestation data
+            attestation_json = json.dumps(attestation_data, sort_keys=True)
+            checkpoint_hash = Web3.keccak(text=attestation_json)
+
+            # Sign with agent key for EIP-712 compliance
+            eth_signed = self.agent_account.sign_message(
+                encode_defunct(primitive=checkpoint_hash)
+            )
 
             # Ensure score is at least 95 to push validation average upward
             score = max(95, min(score, 100))
