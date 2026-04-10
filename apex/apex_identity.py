@@ -504,13 +504,19 @@ class APEXIdentity:
             nonce = self.risk_router.functions.getIntentNonce(
                 self.agent_id
             ).call()
+            logger.info(f"Contract nonce before submission: {nonce}")
+
+            # Add amount variation to ensure unique intent hash per cycle
+            import random
+            amount_variation = random.randint(0, 9)  # 0-9 cents variation
+            amount_usd_scaled = int(amount_usd * 100) + amount_variation
 
             intent = {
                 "agentId":         self.agent_id,
                 "agentWallet":     self.agent_address,
                 "pair":            pair,
                 "action":          action,
-                "amountUsdScaled": int(amount_usd * 100),
+                "amountUsdScaled": amount_usd_scaled,
                 "maxSlippageBps":  100,
                 "nonce":           nonce,
                 "deadline":        int(time.time()) + 300
@@ -579,6 +585,12 @@ class APEXIdentity:
 
             tx_hash = receipt["transactionHash"].hex()
             success = receipt["status"] == 1
+
+            # Log nonce after submission to confirm incrementation
+            new_nonce = self.risk_router.functions.getIntentNonce(
+                self.agent_id
+            ).call()
+            logger.info(f"Contract nonce after submission: {new_nonce}")
 
             # Post checkpoint immediately after
             if success:
