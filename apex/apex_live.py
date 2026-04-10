@@ -179,6 +179,12 @@ class APEXLive:
                 approved = risk_approval.get("approved", False)
                 risk_reason = risk_approval.get("reason", "Risk check failed")
                 risk_level = risk_approval.get("risk_level", "MODERATE")
+            except Exception as e:
+                logger.error(f"Risk approval error: {e}")
+                approved = False
+                risk_reason = f"Risk check failed: {e}"
+                risk_level = "HIGH"
+
             tx_hash = ""
             blockchain_success = False
             kraken_order_id = ""
