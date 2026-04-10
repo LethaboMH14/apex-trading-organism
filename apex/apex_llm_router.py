@@ -110,6 +110,12 @@ AGENT_MODEL_MAP = {
             cost_tier="free"
         ),
         "fallback": ModelConfig(
+            provider=LLMProvider.GROQ,
+            model_id="llama-3.1-8b-instant",
+            max_tokens=1000,
+            temperature=0.7,
+            timeout_seconds=10,
+            cost_tier="free"
         )
     },
     "DR_AMARA": {
