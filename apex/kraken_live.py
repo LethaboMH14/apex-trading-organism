@@ -92,9 +92,22 @@ class KrakenLiveTrader:
         volume = max(round(volume, 6), 0.0001)
         
         if self.paper_mode:
-            stdout, stderr, code = self._run([
-                "paper", side.lower(), paper_pair, str(volume), "-o", "json"
-            ])
+            # Try different pair formats - Kraken paper CLI is strict about format
+            pair_formats = [paper_pair, pair, pair.replace("XBT", "BTC"), "BTC/USD" if "BTC" in pair.upper() or "XBT" in pair.upper() else pair]
+            stdout, stderr, code = "", "", 1
+            for fmt in pair_formats:
+                stdout, stderr, code = self._run([
+                    "paper", side.lower(), fmt, str(volume), "-o", "json"
+                ])
+                logger.info(f"Kraken paper attempt: pair={fmt} vol={volume} | stdout={stdout[:100]} | stderr={stderr[:100]} | code={code}")
+                if code == 0 and stdout:
+                    break
+            if code != 0:
+                # Try without -o json flag as fallback
+                stdout, stderr, code = self._run([
+                    "paper", side.lower(), paper_pair, str(volume)
+                ])
+                logger.info(f"Kraken paper fallback (no json flag): stdout={stdout[:100]} | stderr={stderr[:100]} | code={code}")
         else:
             stdout, stderr, code = self._run([
                 "order", side.lower(), live_pair, str(volume),
