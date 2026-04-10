@@ -3,6 +3,173 @@ trigger: always_on
 
 ---
 
+## Session Update: April 10, 2026 — Major Infrastructure & Trading Fix
+
+### What Was Completed This Session
+
+#### Azure Infrastructure (DONE ✅)
+- Created Azure Key Vault `PP-rg-vault` with 3 secrets: `APEX-PRIVATE-KEY`, `AZURE-OPENAI-API-KEY`, `COSMOS-CONNECTION-STRING`
+- Created Azure Container Registry `apexregistry14` (apexregistry was taken globally)
+- Created Container Apps environment `apex-env` in `precision-pad-rg`, France Central
+- Deployed 3 Azure Container Apps:
+  - `apex-ws` — WebSocket server (port 8766)
+  - `apex-indexer` — On-chain event indexer
+  - `apex-risk-api` — FastAPI risk management API (port 3002)
+- GitHub Actions workflow `.github/workflows/deploy-azure.yml` auto-deploys on every push to `main`
+- GitHub Secrets added: `AZURE_CREDENTIALS`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_COSMOS_CONNECTION_STRING`, `APEX_PRIVATE_KEY`, `APEX_AGENT_ID`, `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`
+- Branch renamed from `master` to `main`
+
+#### Live Risk API (DONE ✅)
+- **Public URL:** `https://apex-risk-api.ambitiouspebble-9b46cb11.francecentral.azurecontainerapps.io`
+- Endpoints:
+  - `GET /risk/status` — returns circuit breaker state, trip count, max drawdown, approval history
+  - `POST /risk/approve` — submit trade for risk approval
+  - `POST /risk/trip` — manually trip circuit breaker
+- `apex/api/risk_api.py` is standalone (no local imports) to avoid dependency issues
+- `apex/start_risk_api.py` launcher used to start uvicorn correctly
+- URL added to `apex/SUBMISSION.md`
+
+#### Trading Pipeline Fixes (DONE ✅)
+- Fixed all git merge conflict markers across all Python files (`apex_live.py`, `apex_identity.py`, `apex_llm_router.py`, `apex_learn.py`, `apex_indexer.py`)
+- Fixed `apex_identity.py` `__init__` to initialize all Web3 contracts:
+  - `self.risk_router`, `self.validation_registry`, `self.reputation_registry`, `self.hackathon_vault`, `self.agent_registry`
+  - `self.agent_id = int(os.getenv("APEX_AGENT_ID", "26"))`
+- Fixed `apex_live.py`:
+  - Added continuous trading loop in `__main__` (runs every 60 seconds forever)
+  - Fixed undefined `confidence` and `reasoning` variables
+  - Added `post_checkpoint` call after every successful trade (not just HOLD)
+  - Added vault claim check at startup
+  - Changed learning cycle from every 5 to every 3 cycles
+  - Added RL policy update after each trade outcome
+  - Fixed BUY/SELL direction based on sentiment: >65 = BUY, <45 = SELL, neutral = RL decides
+- Fixed `apex_llm_router.py`:
+  - Added 3x Groq API key rotation (GROQ_API_KEY, GROQ_API_KEY_2, GROQ_API_KEY_3)
+  - Added Google API key rotation (GOOGLE_API_KEY, GOOGLE_API_KEY_2)
+  - Changed DR_JABARI primary from byteplus to azure_openai
+- Fixed `apex_identity.py` `_send_transaction`:
+  - Changed nonce from `pending` to `latest`
+  - Increased gas price to `3x current gas price`
+  - Reduced timeout to 120 seconds
+  - Added `hackathon_vault` contract initialization
+- Fixed `apex_identity.py` `post_checkpoint`:
+  - Changed from `postEIP712Attestation` to `postAttestation` (direct call workaround for Solidity external call bug)
+  - Added `time.sleep(5)` before checkpoint to avoid nonce conflicts
+  - Removed `ReputationRegistry.submitFeedback` fallback (blocked: operator cannot self-rate)
+  - Reputation is auto-updated by RiskRouter trade intents — no manual submission needed
+- Fixed `apex/requirements.txt` created with all dependencies including `nest_asyncio`
+- Fixed `apex/Dockerfile` COPY syntax
+
+#### Key Discord Info (IMPORTANT)
+- **ValidationRegistry bug:** `postEIP712Attestation` routes through internal `this.` call which changes `msg.sender` to the contract itself, bypassing whitelist. Workaround: call `postAttestation` directly.
+- **`postAttestation` correct signature:**
+```python
+  validation_registry.functions.postAttestation(
+      agent_id,        # uint256
+      checkpoint_hash, # bytes32 (must not be zero)
+      score,           # uint8 (0-100)
+      1,               # ProofType.EIP712 = 1
+      b"",             # empty bytes proof
+      notes            # string (max 200 chars)
+  )
+```
+- **Scoring formula:**
+  - Validation avg score × 0.5 → 0-50 pts
+  - Approved trades × 3, capped at 10 trades → 0-30 pts (MAXED OUT ✅)
+  - Vault capital claimed → 10 pts ✅
+  - Activity bonus (at least one checkpoint) → 10 pts ✅
+  - Leaderboard = combined score (validation 50% + reputation 50%)
+- **Judge bot:** runs every 4 hours automatically
+- **Operator cannot self-rate** on ReputationRegistry — reputation comes from RiskRouter trade outcomes only
+
+#### Current Status (April 10, 2026 ~12:30 PM)
+- **Rank:** 6th (was 10th at start of session)
+- **Validation:** 95 (was 88, target achieved ✅)
+- **Reputation:** 92
+- **Trade Intents:** 550+ (3rd most on leaderboard)
+- **Trading:** Running continuously, 1 trade + 1 checkpoint every 60 seconds
+- **Both TXs confirming:** RiskRouter ✅ + ValidationRegistry ✅ every cycle
+
+#### Kraken CLI (IN PROGRESS)
+- WSL Ubuntu installed ✅
+- Rust & Cargo installed ✅
+- Kraken CLI v0.3.0 installed at `/home/userlethabomh14/.cargo/bin/kraken` ✅
+- **Next step:** Configure Kraken API keys and test connection
+- `.env` needs `KRAKEN_API_KEY` and `KRAKEN_API_SECRET` filled in
+- Test command: `wsl -e /home/userlethabomh14/.cargo/bin/kraken --version`
+- This unlocks real Kraken execution and PnL prize eligibility
+
+#### What Still Needs Doing (Priority Order)
+1. **Kraken API keys** — add to `.env`, test connection, enable live trading
+2. **Fix ReputationRegistry self-rate error** — already removed fallback in code, confirm no more failed TXs
+3. **Pitch deck** — use Gamma.app, content already written (see below)
+4. **Demo video** — record live trading cycle, show dashboard + Etherscan + Risk API
+5. **Social media post** — create APEX Twitter/X account for Kraken social engagement prize
+6. **Dashboard** — show real live data instead of fixed values
+
+#### Pitch Deck (READY TO USE)
+Full 13-slide pitch deck content written. Use **Gamma.app** (free):
+- Go to gamma.app
+- Click Generate
+- Paste slide content
+- Prompt: "dark-themed professional tech pitch deck with futuristic trading aesthetic"
+
+Key slides:
+1. Title — APEX: Autonomous Predictive Exchange
+2. Problem — AI trading agents are black boxes
+3. Solution — Self-evolving trustless organism
+4. Multi-agent architecture — 8 specialized agents
+5. How it works — 60-second cycle breakdown
+6. Live proof — leaderboard + Etherscan screenshots
+7. Risk & Compliance — live Risk API URL
+8. Azure infrastructure — production grade
+9. ERC-8004 trust layer — full implementation
+10. Self-evolution — learning loop proof
+11. Results — rank 6, 550+ trades, 95 validation
+12. Vision — mainnet, multi-asset, LP optimization
+13. Thank you — all URLs and links
+
+#### Prize Strategy
+- **🥇 Best Trustless Trading Agent ($10,000)** — PRIMARY TARGET. Full ERC-8004, most active agent, Azure infrastructure, multi-agent AI
+- **🏆 Best Compliance & Risk Guardrails ($2,500)** — Live public Risk API, circuit breaker, compliance logging, CosmosDB
+- **🥉 Best Validation & Trust Model ($2,500)** — 95 validation score, 550+ checkpoints, proper EIP-712 attestations
+- **Kraken Trading Performance ($1,800)** — Needs live Kraken execution (in progress)
+- **Kraken Social Engagement ($1,200)** — Needs APEX Twitter/X account and public posts
+
+#### Important URLs
+- **Live Dashboard:** https://apex-trading-organism-jmwavcvuw-lethabos-projects-09c9304b.vercel.app
+- **Risk API:** https://apex-risk-api.ambitiouspebble-9b46cb11.francecentral.azurecontainerapps.io
+- **GitHub:** https://github.com/LethaboMH14/apex-trading-organism
+- **Etherscan wallet:** https://sepolia.etherscan.io/address/0x909375eC03d6A001A95Bcf20E2260d671a84140B
+- **Agent ID:** 26
+- **Operator address:** 0x909375eC03d6A001A95Bcf20E2260d671a84140B
+
+#### Contract Addresses (Sepolia)
+- AgentRegistry: `0x97b07dDc405B0c28B17559aFFE63BdB3632d0ca3`
+- HackathonVault: `0x0E7CD8ef9743FEcf94f9103033a044caBD45fC90`
+- RiskRouter: `0xd6A6952545FF6E6E6681c2d15C59f9EB8F40FdBC`
+- ReputationRegistry: `0x423a9904e39537a9997fbaF0f220d79D7d545763`
+- ValidationRegistry: `0x92bF63E5C7Ac6980f237a7164Ab413BE226187F1`
+
+#### Running the System
+```bash
+# Terminal 1 — Trading engine (keep running 24/7)
+cd C:\Users\USER\Desktop\APEX\apex
+python apex_live.py
+
+# Terminal 2 — WebSocket server (for dashboard)
+cd C:\Users\USER\Desktop\APEX\apex
+python apex_ws.py
+```
+
+#### Notes on Self-Learning
+- `apex_learn.py` has LearningLoop, PerformanceTracker, SignalWeightOptimizer, StrategyRewriter
+- `apex_rl.py` has RL neural network policy updated after each trade
+- Learning runs every 3 cycles
+- Look for log line: `🧠 Running learning optimization cycle...` as proof of adaptation
+- Screenshot this for pitch deck proof of self-evolution
+
+---
+
 # APEX - Current Build State (Updated: April 10, 2026 - LLM Router & On-Chain Fixes)
 
 ## Project Identity
