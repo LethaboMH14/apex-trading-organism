@@ -51,11 +51,9 @@ class LLMProvider(Enum):
     OPENROUTER = "openrouter"
     GROQ = "groq"
     GOOGLE = "google"
-    BYTEPLUS = "byteplus"
     SAMBANOVA = "sambanova"
     NVIDIA = "nvidia"
     MISTRAL = "mistral"
-    DEEPSEEK = "deepseek"
     AZURE_OPENAI = "azure_openai"
     OLLAMA = "ollama"
 
@@ -89,7 +87,7 @@ AGENT_MODEL_MAP = {
     "DR_ZARA": {
         "primary": ModelConfig(
             provider=LLMProvider.OPENROUTER,
-            model_id="deepseek/deepseek-r1",
+            model_id="qwen/qwen3-72b-instruct",
             max_tokens=4096,
             temperature=0.7,
             timeout_seconds=30,
@@ -125,7 +123,7 @@ AGENT_MODEL_MAP = {
     "DR_AMARA": {
         "primary": ModelConfig(
             provider=LLMProvider.OPENROUTER,
-            model_id="deepseek/deepseek-r1",
+            model_id="qwen/qwen3-72b-instruct",
             max_tokens=4096,
             temperature=0.8,
             timeout_seconds=30,
@@ -240,12 +238,12 @@ AGENT_MODEL_MAP = {
             cost_tier="cheap"
         ),
         "fallback": ModelConfig(
-            provider=LLMProvider.OPENROUTER,
-            model_id="deepseek/deepseek-r1",
+            provider=LLMProvider.GROQ,
+            model_id="llama-3.3-70b-versatile",
             max_tokens=4096,
             temperature=0.7,
             timeout_seconds=30,
-            cost_tier="cheap"
+            cost_tier="free"
         )
     },
     "ENGR_FATIMA": {
@@ -444,43 +442,6 @@ class LLMRouter:
             logger.warning("⚠️ MISTRAL_API_KEY not set — provider skipped")
             skipped_providers.append("Mistral")
         
-        # DeepSeek
-        key = os.getenv("DEEPSEEK_API_KEY", "")
-        if key and key != "your_key_here" and key.strip():
-            try:
-                # Test if DeepSeek has balance before initializing
-                test_client = openai.AsyncOpenAI(
-                    base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
-                    api_key=key
-                )
-                # Quick balance test - this will fail if no balance
-                import asyncio
-                try:
-                    loop = asyncio.get_event_loop()
-                    test_response = loop.run_until_complete(
-                        test_client.chat.completions.create(
-                            model="deepseek-chat",
-                            messages=[{"role": "user", "content": "test"}],
-                            max_tokens=1
-                        )
-                    )
-                    self.clients[LLMProvider.DEEPSEEK] = test_client
-                    initialized_count += 1
-                    logger.info("✅ DeepSeek client initialized")
-                except Exception as test_error:
-                    if "402" in str(test_error) or "Insufficient Balance" in str(test_error):
-                        DISABLED_PROVIDERS.add(LLMProvider.DEEPSEEK)
-                        logger.info("⚠️ DeepSeek has insufficient balance — provider disabled at startup")
-                        skipped_providers.append("DeepSeek")
-                    else:
-                        raise test_error
-            except Exception as e:
-                logger.warning(f"❌ DeepSeek client failed to initialize: {e}")
-                skipped_providers.append("DeepSeek")
-        else:
-            logger.warning("⚠️ DEEPSEEK_API_KEY not set — provider skipped")
-            skipped_providers.append("DeepSeek")
-        
         # Azure OpenAI
         key = os.getenv("AZURE_OPENAI_API_KEY", "")
         endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "")
@@ -550,43 +511,6 @@ class LLMRouter:
             logger.warning("⚠️ Google AI package not available — provider skipped")
             skipped_providers.append("Google")
         
-        # BytePlus
-        key = os.getenv("BYTEPLUS_API_KEY", "")
-        if key and key != "your_key_here" and key.strip():
-            try:
-                # Test if BytePlus key is valid before initializing
-                test_client = openai.AsyncOpenAI(
-                    base_url=os.getenv("BYTEPLUS_BASE_URL", "https://ark.byteplusapi.com/v1"),
-                    api_key=key
-                )
-                # Quick test - this will fail if key is invalid
-                import asyncio
-                try:
-                    loop = asyncio.get_event_loop()
-                    test_response = loop.run_until_complete(
-                        test_client.chat.completions.create(
-                            model="Doubao-lite-4k",
-                            messages=[{"role": "user", "content": "test"}],
-                            max_tokens=1
-                        )
-                    )
-                    self.clients[LLMProvider.BYTEPLUS] = test_client
-                    initialized_count += 1
-                    logger.info("✅ BytePlus client initialized")
-                except Exception as test_error:
-                    if "401" in str(test_error) or "AuthenticationError" in str(test_error):
-                        DISABLED_PROVIDERS.add(LLMProvider.BYTEPLUS)
-                        logger.info("⚠️ BytePlus authentication failed — provider disabled at startup (add funds or check API key)")
-                        skipped_providers.append("BytePlus")
-                    else:
-                        raise test_error
-            except Exception as e:
-                logger.warning(f"❌ BytePlus client failed to initialize: {e}")
-                skipped_providers.append("BytePlus")
-        else:
-            logger.warning("⚠️ BYTEPLUS_API_KEY not set — provider skipped")
-            skipped_providers.append("BytePlus")
-        
         # Ollama (Local) - always try to initialize as it's local
         try:
             ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
@@ -601,7 +525,7 @@ class LLMRouter:
             skipped_providers.append("Ollama")
         
         # Log initialization summary
-        logger.info(f"🔧 Initialization complete: {initialized_count} of 10 providers initialized")
+        logger.info(f"🔧 Initialization complete: {initialized_count} of 8 providers initialized")
         if skipped_providers:
             logger.info(f"⚠️ Skipped providers: {', '.join(skipped_providers)}")
         else:
@@ -984,9 +908,7 @@ class LLMRouter:
         cost_mapping = {
             LLMProvider.GROQ: "free",
             LLMProvider.OLLAMA: "free",
-            LLMProvider.BYTEPLUS: "free",
             LLMProvider.OPENROUTER: "cheap",
-            LLMProvider.DEEPSEEK: "cheap",
             LLMProvider.SAMBANOVA: "cheap",
             LLMProvider.NVIDIA: "cheap",
             LLMProvider.MISTRAL: "cheap",
