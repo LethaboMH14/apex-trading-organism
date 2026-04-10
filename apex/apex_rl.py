@@ -25,7 +25,7 @@ import torch.nn.functional as F
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
-from gym import spaces
+import gymnasium as gym
 from collections import deque
 import random
 
@@ -57,8 +57,8 @@ class TradingEnvironment:
     
     def __init__(self):
         """Initialize trading environment."""
-        self.action_space = spaces.Discrete(4)  # 0=hold, 1=buy, 2=sell, 3=close
-        self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(8,), dtype=np.float32)
+        self.action_space = gym.spaces.Discrete(4)  # 0=hold, 1=buy, 2=sell, 3=close
+        self.observation_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(8,), dtype=np.float32)
         
         # Environment state
         self.current_state = None

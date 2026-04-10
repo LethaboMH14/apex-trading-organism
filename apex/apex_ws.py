@@ -13,7 +13,7 @@ import time
 import random
 import threading
 from datetime import datetime
-from websockets.server import serve
+from websockets import serve
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -263,9 +263,9 @@ class APEXWebSocketServer:
         asyncio.create_task(self.run_validation_burst())
 
         logger.info(" Starting APEX WebSocket server on port 8766...")
-        async with serve(self.handle_client, "localhost", 8766) as server:
+        async with serve(self.handle_client, "localhost", 8766):
             logger.info(" APEX WebSocket server live on ws://localhost:8766")
-            await server.wait_closed()
+            await asyncio.Future()  # run forever
 
     def stop_server(self):
         self.running = False
