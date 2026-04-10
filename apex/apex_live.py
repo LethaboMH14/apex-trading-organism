@@ -375,8 +375,14 @@ class APEXLive:
         except Exception:
             sent_score = 62
 
-        # Use data-driven action (not random)
-        action = "BUY" if (change > 0 and sent_score > 50) else "SELL" if (change < -1 and sent_score < 45) else "BUY"
+        # Determine action based on sentiment and price momentum
+        if sent_score > 65:
+            action = "BUY"
+        elif sent_score < 45:
+            action = "SELL"
+        else:
+            # Use RL policy for neutral sentiment
+            action = self.rl_policy.get_action(market_state) if hasattr(self, 'rl_policy') and self.rl_policy else "BUY"
         pair = "BTC/USD"
         success_count = 0
 
