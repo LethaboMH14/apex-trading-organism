@@ -264,7 +264,29 @@ class APEXIdentity:
 
         # Load agent ID from environment variable
         self.agent_id = int(os.getenv("APEX_AGENT_ID", "26"))
-        self.risk_router = None
+
+        # Web3 connection
+        self.w3 = Web3(Web3.HTTPProvider(SEPOLIA_RPC))
+        
+        # Contract instances
+        self.agent_registry = self.w3.eth.contract(
+            address=Web3.to_checksum_address(AGENT_REGISTRY_ADDRESS),
+            abi=AGENT_REGISTRY_ABI
+        )
+        self.risk_router = self.w3.eth.contract(
+            address=Web3.to_checksum_address(RISK_ROUTER_ADDRESS),
+            abi=RISK_ROUTER_ABI
+        )
+        self.reputation_registry = self.w3.eth.contract(
+            address=Web3.to_checksum_address(REPUTATION_REGISTRY_ADDRESS),
+            abi=REPUTATION_REGISTRY_ABI
+        )
+        self.validation_registry = self.w3.eth.contract(
+            address=Web3.to_checksum_address(VALIDATION_REGISTRY_ADDRESS),
+            abi=VALIDATION_REGISTRY_ABI
+        )
+        
+        logger.info(f"APEXIdentity initialized | Agent ID: {self.agent_id} | Connected: {self.w3.is_connected()}")
 
     def _load_agent_id(self) -> int:
         """Load agent ID from env or local file."""
