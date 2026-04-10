@@ -237,6 +237,16 @@ class APEXLive:
                             logger.info("✅ Validation checkpoint posted")
                         except Exception as cp_err:
                             logger.warning(f"Checkpoint post failed: {cp_err}")
+
+                        # Update RL policy with trade outcome
+                        trade_outcome = {
+                            "action": action,
+                            "price": price,
+                            "sentiment": sent_score,
+                            "success": blockchain_success
+                        }
+                        if hasattr(self, 'rl_policy') and self.rl_policy:
+                            self.rl_policy.update(trade_outcome)
                     else:
                         logger.warning("Blockchain submission failed")
                 except Exception as e:
@@ -280,8 +290,8 @@ class APEXLive:
 
             cycle_duration = (datetime.now() - cycle_start).total_seconds()
 
-            # Run learning loop every 5 cycles
-            if self._cycle_count % 5 == 0:
+            # Run learning loop every 3 cycles
+            if self._cycle_count % 3 == 0:
                 logger.info("🧠 Running learning optimization cycle...")
                 try:
                     trades = self._load_trades_from_memory(20)
