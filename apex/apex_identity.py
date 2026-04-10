@@ -264,6 +264,7 @@ class APEXIdentity:
 
         # Load agent ID from environment variable
         self.agent_id = int(os.getenv("APEX_AGENT_ID", "26"))
+        self.risk_router = None
 
     def _load_agent_id(self) -> int:
         """Load agent ID from env or local file."""
@@ -414,6 +415,10 @@ class APEXIdentity:
         Sign and submit a trade intent through RiskRouter.
         Max $500/trade, 10 trades/hour, 5% drawdown limit.
         """
+        if not self.risk_router:
+            logger.warning("risk_router not initialized - skipping blockchain submission")
+            return {"tx_hash": "", "success": False}
+
         if not self.agent_id:
             return {"success": False, "error": "Agent not registered"}
 

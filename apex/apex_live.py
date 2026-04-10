@@ -201,12 +201,14 @@ class APEXLive:
             if action in ["BUY", "SELL"] and approved:
                 logger.info(f"Submitting {action} trade to blockchain...")
                 try:
+                    _reasoning = f"BTC ${price:.0f} | Sentiment {sent_score:.0f}/100 | Risk {risk_level} | RL:{action}"
+                    _confidence = 0.82
                     blockchain_result = await self.identity.submit_trade_intent(
                         pair="BTC/USD",
                         action=action,
                         amount_usd=trade_size,
-                        reasoning=f"BTC ${price:.0f} | Sentiment {sent_score:.0f}/100 | Risk {risk_level} | RL:{action}",
-                        confidence=0.82
+                        reasoning=_reasoning,
+                        confidence=_confidence
                     )
                     tx_hash = blockchain_result.get("tx_hash", "")
                     blockchain_success = blockchain_result.get("success", False)
