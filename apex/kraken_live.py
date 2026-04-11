@@ -82,12 +82,21 @@ class KrakenLiveTrader:
 
         # Reset to $10,000 — MUST run reset FIRST, then init
         logger.info("Resetting paper account to $10,000...")
-        reset_out, reset_err, reset_code = self._run(["paper", "reset"])
-        logger.info(f"Paper reset: code={reset_code} | stdout={reset_out[:100] if reset_out else ''} | stderr={reset_err[:100] if reset_err else ''}")
         
-        import time as _t
-        _t.sleep(3)
+        # Try reset multiple times to ensure it clears
+        for i in range(2):
+            reset_out, reset_err, reset_code = self._run(["paper", "reset"])
+            logger.info(f"Paper reset attempt {i+1}: code={reset_code} | stdout={reset_out[:100] if reset_out else ''} | stderr={reset_err[:100] if reset_err else ''}")
+            import time as _t
+            _t.sleep(2)
         
+        # Try different reset variations
+        logger.info("Trying paper reset with --force flag...")
+        reset_out, reset_err, reset_code = self._run(["paper", "reset", "--force"])
+        logger.info(f"Paper reset --force: code={reset_code} | stdout={reset_out[:100] if reset_out else ''} | stderr={reset_err[:100] if reset_err else ''}")
+        _t.sleep(2)
+        
+        # Now try init
         init_out, init_err, init_code = self._run(["paper", "init", "--balance", "10000"])
         logger.info(f"Paper init: code={init_code} | stdout={init_out[:100] if init_out else ''} | stderr={init_err[:100] if init_err else ''}")
         
@@ -103,6 +112,14 @@ class KrakenLiveTrader:
                 logger.info("Paper account initialized ✅")
             else:
                 logger.warning(f"Init retry also failed: {init_err2}")
+                # Last resort: try with different balance format
+                logger.info("Trying init with balance as number without --flag...")
+                init_out3, init_err3, init_code3 = self._run(["paper", "init", "10000"])
+                logger.info(f"Paper init alt: code={init_code3} | stdout={init_out3[:100] if init_out3 else ''} | stderr={init_err3[:100] if init_err3 else ''}")
+                if init_code3 == 0:
+                    logger.info("Paper account initialized with alt method ✅")
+                else:
+                    logger.warning(f"All init attempts failed, continuing anyway...")
         
         self._paper_initialized = True
 
