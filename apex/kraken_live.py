@@ -49,28 +49,40 @@ class KrakenLiveTrader:
             return "", str(e), 1
 
     def _ensure_paper_initialized(self):
-        """Ensure paper account is initialized - only init if not already set up."""
+        """Ensure paper account is initialized - reset if balance < $300."""
         stdout, stderr, code = self._run(["paper", "status"])
-        
-        # Check if already initialized by looking for balance data or "already initialized" message
-        if code == 0 and ("balance" in stdout.lower() or "initialized" in stdout.lower() or "usd" in stdout.lower()):
-            logger.info("Paper account already initialized - skipping init")
-            self._paper_initialized = True
-            return
-        
-        # Only init if not already set up
-        if "not initialized" in stdout.lower() or code != 0:
-            logger.info("Initializing paper trading account with $10,000...")
-            stdout, stderr, code = self._run(["paper", "init", "--balance", "10000", "-o", "json"])
-            if code == 0:
-                logger.info("Paper account initialized with $10,000 virtual USD")
+
+        # Try to parse balance from status output
+        try:
+            import json as _json
+            data = _json.loads(stdout)
+            usd = float(data.get("USD", data.get("usd", 0)))
+            if usd >= 300:
+                logger.info(f"Paper account OK: ${usd:.2f} available")
                 self._paper_initialized = True
+                return
             else:
-                logger.warning(f"Paper init failed: {stderr}")
-        else:
-            # Silently skip if already initialized — not an error
-            logger.debug("Paper account already initialized")
+                logger.warning(f"Paper balance low: ${usd:.2f} — resetting to $10,000")
+        except Exception:
+            # If we can't parse, check raw text
+            if "not initialized" not in stdout.lower() and code == 0:
+                logger.info("Paper account status OK — skipping init")
+                self._paper_initialized = True
+                return
+
+        # Reset and reinitialize
+        logger.info("Resetting paper account to $10,000...")
+        self._run(["paper", "reset"])
+        import time as _time
+        _time.sleep(2)
+        stdout2, stderr2, code2 = self._run(
+            ["paper", "init", "--balance", "10000"]
+        )
+        if code2 == 0:
+            logger.info("Paper account reset to $10,000 ✅")
             self._paper_initialized = True
+        else:
+            logger.warning(f"Paper reset failed: {stderr2}")
 
     def test_connection(self) -> tuple:
         """Test if Kraken CLI is working."""
@@ -98,13 +110,17 @@ class KrakenLiveTrader:
 
     def place_market_order(self, pair: str, side: str, volume: float) -> Dict[str, Any]:
         """Place market order — paper or live."""
+        # Ensure paper balance is sufficient before attempting order
+        if self.paper_mode:
+            self._ensure_paper_initialized()
+
         # Normalize pair: XBTUSD -> BTCUSD for paper mode
         paper_pair = pair.replace("XBT", "BTC")
         live_pair = pair
-        
+
         # Enforce minimum volume
         volume = max(round(volume, 6), 0.0001)
-        
+
         if self.paper_mode:
             # Try different pair formats - Kraken paper CLI is strict about format
             pair_formats = [paper_pair, pair, pair.replace("XBT", "BTC"), "BTC/USD" if "BTC" in pair.upper() or "XBT" in pair.upper() else pair]
