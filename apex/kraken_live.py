@@ -50,28 +50,39 @@ class KrakenLiveTrader:
 
     def _ensure_paper_initialized(self):
         """Check balance and reset if too low."""
-        try:
-            stdout, stderr, code = self._run(["paper", "balance"])
-            if code == 0 and stdout:
-                # Try to find USD balance in output
-                import re
-                match = re.search(r'USD["\s:]+(\d+\.?\d*)', stdout)
-                if match:
-                    usd = float(match.group(1))
-                    if usd >= 300:
-                        logger.info(f"Paper balance OK: ${usd:.2f}")
-                        self._paper_initialized = True
-                        return
-                    else:
-                        logger.warning(f"Paper balance low (${usd:.2f}) — resetting")
-        except Exception as e:
-            logger.warning(f"Balance check failed: {e}")
+        # Try multiple balance check commands in order until one returns valid USD balance
+        balance_commands = [
+            ["paper", "balance"],
+            ["paper", "status"],
+            ["paper", "balance", "-o", "json"]
+        ]
+        
+        for cmd in balance_commands:
+            try:
+                stdout, stderr, code = self._run(cmd)
+                if code == 0 and stdout:
+                    logger.info(f"Balance check command succeeded: {' '.join(cmd)}")
+                    logger.info(f"Raw stdout: {stdout[:200]}")
+                    # Try to find USD balance in output
+                    import re
+                    match = re.search(r'USD["\s:]+(\d+\.?\d*)', stdout)
+                    if match:
+                        usd = float(match.group(1))
+                        if usd >= 300:
+                            logger.info(f"Paper balance OK: ${usd:.2f}")
+                            self._paper_initialized = True
+                            return
+                        else:
+                            logger.warning(f"Paper balance low (${usd:.2f}) — resetting")
+                            break
+            except Exception as e:
+                logger.warning(f"Balance check with {' '.join(cmd)} failed: {e}")
 
-        # Reset to $10,000
+        # Reset to $10,000 — MUST run reset FIRST, then init
         logger.info("Resetting paper account to $10,000...")
-        self._run(["paper", "reset"])
+        self._run(["paper", "reset"])  # must run first
         import time as _t
-        _t.sleep(2)
+        _t.sleep(3)
         out, err, code = self._run(["paper", "init", "--balance", "10000"])
         if code == 0:
             logger.info("Paper account reset to $10,000 ✅")

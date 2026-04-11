@@ -366,7 +366,7 @@ class APEXIdentity:
 
             logger.info(f"Nonce used: {nonce} | Chain nonce: {chain_nonce} | Cached: {cached}")
 
-            gas_price = int(self.w3.eth.gas_price * 3)
+            gas_price = int(self.w3.eth.gas_price * 5)
             tx = tx_func.build_transaction({
                 "from": from_address,
                 "nonce": nonce,
@@ -390,6 +390,8 @@ class APEXIdentity:
                 f"Gas: {receipt['gasUsed']} | "
                 f"Status: {'✅' if receipt['status'] == 1 else '❌'}"
             )
+            # Allow node to update nonce state before next transaction
+            time.sleep(5)
             return receipt
         except Exception as e:
             logger.warning(f"TX timeout/error: {e} - tx: {tx_hash.hex()}")
