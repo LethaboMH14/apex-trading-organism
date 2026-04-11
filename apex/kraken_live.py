@@ -57,6 +57,7 @@ class KrakenLiveTrader:
             ["paper", "balance", "-o", "json"]
         ]
         
+        balance_ok = False
         for cmd in balance_commands:
             try:
                 stdout, stderr, code = self._run(cmd)
@@ -71,6 +72,7 @@ class KrakenLiveTrader:
                         if usd >= 300:
                             logger.info(f"Paper balance OK: ${usd:.2f}")
                             self._paper_initialized = True
+                            balance_ok = True
                             return
                         else:
                             logger.warning(f"Paper balance low (${usd:.2f}) — resetting")
@@ -80,14 +82,28 @@ class KrakenLiveTrader:
 
         # Reset to $10,000 — MUST run reset FIRST, then init
         logger.info("Resetting paper account to $10,000...")
-        self._run(["paper", "reset"])  # must run first
+        reset_out, reset_err, reset_code = self._run(["paper", "reset"])
+        logger.info(f"Paper reset: code={reset_code} | stdout={reset_out[:100] if reset_out else ''} | stderr={reset_err[:100] if reset_err else ''}")
+        
         import time as _t
         _t.sleep(3)
-        out, err, code = self._run(["paper", "init", "--balance", "10000"])
-        if code == 0:
+        
+        init_out, init_err, init_code = self._run(["paper", "init", "--balance", "10000"])
+        logger.info(f"Paper init: code={init_code} | stdout={init_out[:100] if init_out else ''} | stderr={init_err[:100] if init_err else ''}")
+        
+        if init_code == 0:
             logger.info("Paper account reset to $10,000 ✅")
         else:
-            logger.warning(f"Reset failed: {err}")
+            logger.warning(f"Init failed: {init_err}")
+            # If init fails, try without --balance flag
+            logger.info("Retrying init without --balance flag...")
+            init_out2, init_err2, init_code2 = self._run(["paper", "init"])
+            logger.info(f"Paper init retry: code={init_code2} | stdout={init_out2[:100] if init_out2 else ''} | stderr={init_err2[:100] if init_err2 else ''}")
+            if init_code2 == 0:
+                logger.info("Paper account initialized ✅")
+            else:
+                logger.warning(f"Init retry also failed: {init_err2}")
+        
         self._paper_initialized = True
 
     def test_connection(self) -> tuple:
