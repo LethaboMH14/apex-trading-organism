@@ -49,40 +49,35 @@ class KrakenLiveTrader:
             return "", str(e), 1
 
     def _ensure_paper_initialized(self):
-        """Ensure paper account is initialized - reset if balance < $300."""
-        stdout, stderr, code = self._run(["paper", "status"])
-
-        # Try to parse balance from status output
+        """Check balance and reset if too low."""
         try:
-            import json as _json
-            data = _json.loads(stdout)
-            usd = float(data.get("USD", data.get("usd", 0)))
-            if usd >= 300:
-                logger.info(f"Paper account OK: ${usd:.2f} available")
-                self._paper_initialized = True
-                return
-            else:
-                logger.warning(f"Paper balance low: ${usd:.2f} — resetting to $10,000")
-        except Exception:
-            # If we can't parse, check raw text
-            if "not initialized" not in stdout.lower() and code == 0:
-                logger.info("Paper account status OK — skipping init")
-                self._paper_initialized = True
-                return
+            stdout, stderr, code = self._run(["paper", "balance"])
+            if code == 0 and stdout:
+                # Try to find USD balance in output
+                import re
+                match = re.search(r'USD["\s:]+(\d+\.?\d*)', stdout)
+                if match:
+                    usd = float(match.group(1))
+                    if usd >= 300:
+                        logger.info(f"Paper balance OK: ${usd:.2f}")
+                        self._paper_initialized = True
+                        return
+                    else:
+                        logger.warning(f"Paper balance low (${usd:.2f}) — resetting")
+        except Exception as e:
+            logger.warning(f"Balance check failed: {e}")
 
-        # Reset and reinitialize
+        # Reset to $10,000
         logger.info("Resetting paper account to $10,000...")
         self._run(["paper", "reset"])
-        import time as _time
-        _time.sleep(2)
-        stdout2, stderr2, code2 = self._run(
-            ["paper", "init", "--balance", "10000"]
-        )
-        if code2 == 0:
+        import time as _t
+        _t.sleep(2)
+        out, err, code = self._run(["paper", "init", "--balance", "10000"])
+        if code == 0:
             logger.info("Paper account reset to $10,000 ✅")
-            self._paper_initialized = True
         else:
-            logger.warning(f"Paper reset failed: {stderr2}")
+            logger.warning(f"Reset failed: {err}")
+        self._paper_initialized = True
 
     def test_connection(self) -> tuple:
         """Test if Kraken CLI is working."""

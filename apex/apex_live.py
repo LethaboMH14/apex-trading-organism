@@ -245,6 +245,16 @@ class APEXLive:
                             logger.info("Reducing trade size to fit available balance")
                             trade_size = max(50, int(usd_available * 0.9))
                             logger.info(f"Adjusted trade size to ${trade_size}")
+                            # Skip cycle if balance too low for any trade
+                            if trade_size < 50:
+                                logger.warning("Balance too low for any trade — skipping blockchain too")
+                                return {
+                                    "cycle_id": cycle_start.strftime("%Y%m%d_%H%M%S"),
+                                    "timestamp": cycle_start.isoformat(),
+                                    "action": action,
+                                    "reasoning": "Balance too low - skipped",
+                                    "success": False
+                                }
                     except Exception as e:
                         logger.warning(f"Balance check failed: {e}, proceeding with original size")
 
