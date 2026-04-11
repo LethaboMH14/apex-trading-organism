@@ -235,6 +235,10 @@ class APEXLive:
                 logger.info(f"🤖 Action: {action} (RL policy, neutral zone)")
 
             if action in ["BUY", "SELL"] and approved:
+                # Ensure paper balance is sufficient before any trade
+                if self.kraken_trader and self.kraken_trader.paper_mode:
+                    self.kraken_trader._ensure_paper_initialized()
+
                 # Pre-trade balance check in paper mode
                 if self.kraken_trader and self.kraken_trader.paper_mode:
                     try:
