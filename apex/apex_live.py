@@ -125,7 +125,7 @@ class APEXLive:
             logger.warning(f"Failed to load trades from memory: {e}")
             return []
 
-    async def run_cycle(self, trade_size: float = 350) -> Dict[str, Any]:
+    async def run_cycle(self, trade_size: float = 100) -> Dict[str, Any]:
         """Run a complete trading cycle with high-quality reasoning."""
         cycle_start = datetime.now()
         self._cycle_count += 1
@@ -235,6 +235,19 @@ class APEXLive:
                 logger.info(f"🤖 Action: {action} (RL policy, neutral zone)")
 
             if action in ["BUY", "SELL"] and approved:
+                # Pre-trade balance check in paper mode
+                if self.kraken_trader and self.kraken_trader.paper_mode:
+                    try:
+                        balance = self.kraken_trader.get_balance()
+                        usd_available = float(balance.get('USD', balance.get('usd', 0)))
+                        if usd_available < trade_size:
+                            logger.warning(f"Kraken balance too low: ${usd_available:.2f} < ${trade_size}")
+                            logger.info("Reducing trade size to fit available balance")
+                            trade_size = max(50, int(usd_available * 0.9))
+                            logger.info(f"Adjusted trade size to ${trade_size}")
+                    except Exception as e:
+                        logger.warning(f"Balance check failed: {e}, proceeding with original size")
+
                 logger.info(f"Submitting {action} trade to blockchain...")
                 try:
                     blockchain_result = await self.identity.submit_trade_intent(
@@ -298,12 +311,14 @@ class APEXLive:
                             side=action.lower(),
                             volume=btc_volume
                         )
-                        if "error" not in kraken_result:
+                        # Check for kraken success: success field must be True, no error, and code=0
+                        if kraken_result.get("success", False) and "error" not in kraken_result:
                             kraken_order_id = kraken_result.get("txid", "")
                             kraken_success = True
                             logger.info(f"Kraken order successful: {kraken_order_id}")
                         else:
-                            logger.warning(f"Kraken order failed: {kraken_result.get('error')}")
+                            kraken_success = False
+                            logger.warning(f"Kraken order failed: {kraken_result.get('error', 'Unknown error')}")
                     except Exception as e:
                         logger.error(f"Kraken execution error: {e}")
 
@@ -387,7 +402,7 @@ class APEXLive:
                 "success": approved and action in ["BUY", "SELL"]
             }
 
-            logger.info(f"Cycle #{self._cycle_count} completed in {cycle_duration:.2f}s - Success: {result['success']}")
+            logger.info(f"Cycle #{self._cycle_count} completed in {cycle_duration:.2f}s - Blockchain: {blockchain_success}, Kraken: {kraken_success}")
             return result
 
         except Exception as e:

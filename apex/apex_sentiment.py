@@ -234,8 +234,7 @@ class CryptoNewsAggregator:
         self.sources = {
             "coindesk": "https://www.coindesk.com/arc/outbound-rss.xml",
             "decrypt": "https://decrypt.co/feed",
-            "cointelegraph": "https://cointelegraph.com/rss",
-            "theblock": "https://www.theblock.co/rss.xml"
+            "cointelegraph": "https://cointelegraph.com/rss"
         }
         
         self.headers = {
