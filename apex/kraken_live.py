@@ -52,9 +52,9 @@ class KrakenLiveTrader:
         """Check balance and reset if too low."""
         # Try multiple balance check commands in order until one returns valid USD balance
         balance_commands = [
+            ["paper", "balance", "-o", "json"],  # Try JSON first for reliable parsing
             ["paper", "balance"],
             ["paper", "status"],
-            ["paper", "balance", "-o", "json"]
         ]
         
         balance_ok = False
@@ -64,19 +64,34 @@ class KrakenLiveTrader:
                 if code == 0 and stdout:
                     logger.info(f"Balance check command succeeded: {' '.join(cmd)}")
                     logger.info(f"Raw stdout: {stdout[:200]}")
-                    # Try to find USD balance in output
+                    # Try to parse JSON first
+                    import json
                     import re
-                    match = re.search(r'USD["\s:]+(\d+\.?\d*)', stdout)
-                    if match:
-                        usd = float(match.group(1))
-                        if usd >= 300:
-                            logger.info(f"Paper balance OK: ${usd:.2f}")
-                            self._paper_initialized = True
-                            balance_ok = True
-                            return
-                        else:
-                            logger.warning(f"Paper balance low (${usd:.2f}) — resetting")
-                            break
+                    try:
+                        data = json.loads(stdout)
+                        if "balances" in data and "USD" in data["balances"]:
+                            usd = float(data["balances"]["USD"]["available"])
+                            if usd >= 300:
+                                logger.info(f"Paper balance OK (JSON): ${usd:.2f}")
+                                self._paper_initialized = True
+                                return
+                            else:
+                                logger.warning(f"Paper balance low (JSON): ${usd:.2f} — resetting")
+                                balance_ok = True
+                                break
+                    except json.JSONDecodeError:
+                        # Fall back to regex parsing
+                        match = re.search(r'USD["\s:]+(\d+\.?\d*)', stdout)
+                        if match:
+                            usd = float(match.group(1))
+                            if usd >= 300:
+                                logger.info(f"Paper balance OK (regex): ${usd:.2f}")
+                                self._paper_initialized = True
+                                return
+                            else:
+                                logger.warning(f"Paper balance low (regex): ${usd:.2f} — resetting")
+                                balance_ok = True
+                                break
             except Exception as e:
                 logger.warning(f"Balance check with {' '.join(cmd)} failed: {e}")
 
@@ -84,10 +99,10 @@ class KrakenLiveTrader:
         logger.info("Resetting paper account to $10,000...")
         
         # Try reset multiple times to ensure it clears
+        import time as _t
         for i in range(2):
             reset_out, reset_err, reset_code = self._run(["paper", "reset"])
             logger.info(f"Paper reset attempt {i+1}: code={reset_code} | stdout={reset_out[:100] if reset_out else ''} | stderr={reset_err[:100] if reset_err else ''}")
-            import time as _t
             _t.sleep(2)
         
         # Try different reset variations
@@ -96,12 +111,18 @@ class KrakenLiveTrader:
         logger.info(f"Paper reset --force: code={reset_code} | stdout={reset_out[:100] if reset_out else ''} | stderr={reset_err[:100] if reset_err else ''}")
         _t.sleep(2)
         
-        # Now try init
+        # If reset succeeded, skip init (reset already initializes the account)
+        if reset_code == 0:
+            logger.info("Paper reset succeeded — account should be initialized ✅")
+            self._paper_initialized = True
+            return
+        
+        # If reset failed, try init
         init_out, init_err, init_code = self._run(["paper", "init", "--balance", "10000"])
         logger.info(f"Paper init: code={init_code} | stdout={init_out[:100] if init_out else ''} | stderr={init_err[:100] if init_err else ''}")
         
         if init_code == 0:
-            logger.info("Paper account reset to $10,000 ✅")
+            logger.info("Paper account initialized ✅")
         else:
             logger.warning(f"Init failed: {init_err}")
             # If init fails, try without --balance flag
@@ -112,14 +133,6 @@ class KrakenLiveTrader:
                 logger.info("Paper account initialized ✅")
             else:
                 logger.warning(f"Init retry also failed: {init_err2}")
-                # Last resort: try with different balance format
-                logger.info("Trying init with balance as number without --flag...")
-                init_out3, init_err3, init_code3 = self._run(["paper", "init", "10000"])
-                logger.info(f"Paper init alt: code={init_code3} | stdout={init_out3[:100] if init_out3 else ''} | stderr={init_err3[:100] if init_err3 else ''}")
-                if init_code3 == 0:
-                    logger.info("Paper account initialized with alt method ✅")
-                else:
-                    logger.warning(f"All init attempts failed, continuing anyway...")
         
         self._paper_initialized = True
 
