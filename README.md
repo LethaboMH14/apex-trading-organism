@@ -185,25 +185,26 @@ The dashboard includes a dedicated **System Health** tab with:
 ---
 
 ## 🏗️ Architecture
-┌─────────────────────────────────────────────────────────┐
-│                  APEX TRADING ORGANISM                   │
-├─────────────────────────────────────────────────────────┤
-│  apex_live.py         Main orchestrator (15s scheduler) │
-│  apex_ws.py           WebSocket server (port 8766)      │
-│  apex_identity.py     ERC-8004 identity & EIP-712       │
-│  apex_risk.py         CircuitBreaker & RiskGate         │
-│  apex_sentiment.py    NLP pipeline (40 articles/cycle)  │
-│  apex_rl.py           PPO reinforcement learning        │
-│  apex_learn.py        Sharpe optimizer (every 3 cycles) │
-│  apex_llm_router.py   8-provider LLM routing            │
-│  kraken_live.py       Kraken HTTP execution             │
-│  apex_indexer.py      Azure CosmosDB off-chain indexer  │
-├─────────────────────────────────────────────────────────┤
-│  dashboard/           React 19 + Recharts + Vite        │
-│  ├── App.jsx          12-tab live dashboard             │
-│  ├── App.css          Premium dark trading UI           │
-│  └── index.css        Global design system              │
-└─────────────────────────────────────────────────────────┘
+
+| Backend Components | Description |
+|---|---|
+| `apex_live.py` | Main orchestrator (15s scheduler) |
+| `apex_ws.py` | WebSocket server (port 8766) |
+| `apex_identity.py` | ERC-8004 identity & EIP-712 |
+| `apex_risk.py` | CircuitBreaker & RiskGate |
+| `apex_sentiment.py` | NLP pipeline (40 articles/cycle) |
+| `apex_rl.py` | PPO reinforcement learning |
+| `apex_learn.py` | Sharpe optimizer (every 3 cycles) |
+| `apex_llm_router.py` | 8-provider LLM routing |
+| `kraken_live.py` | Kraken HTTP execution |
+| `apex_indexer.py` | Azure CosmosDB off-chain indexer |
+
+| Frontend Components | Description |
+|---|---|
+| `dashboard/` | React 19 + Recharts + Vite |
+| `App.jsx` | 12-tab live dashboard |
+| `App.css` | Premium dark trading UI |
+| `index.css` | Global design system |
 
 ---
 
