@@ -349,7 +349,7 @@ npm run dev
 |---|---|
 | Live App | https://apex-trading-organism.vercel.app |
 | GitHub | https://github.com/LethaboMH14/apex-trading-organism |
-| Video | [YouTube Demo](https://youtube.com) |
+| Video | [YouTube Demo](https://www.youtube.com/watch?v=rCNcSzowHHY) |
 | Twitter | [@AOrganism27904](https://x.com/AOrganism27904) |
 | ERC-8004 Agent | Token #26 — 0x909375eC03d6A801A95Bcf20E2260d671a84140B |
 
