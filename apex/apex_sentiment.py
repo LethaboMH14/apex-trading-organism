@@ -232,7 +232,7 @@ class CryptoNewsAggregator:
     def __init__(self):
         """Initialize crypto news aggregator."""
         self.sources = {
-            "coindesk": "https://www.coindesk.com/arc/outbound-rss.xml",
+            "cryptonews": "https://cryptonews.com/news/",
             "decrypt": "https://decrypt.co/feed",
             "cointelegraph": "https://cointelegraph.com/rss"
         }

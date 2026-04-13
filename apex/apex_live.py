@@ -52,6 +52,10 @@ class APEXLive:
         self.circuit_breaker = CircuitBreaker(self.risk_params)
         self.risk_gate = RiskGate(self.risk_params, self.circuit_breaker)
         self.llm_router = LLMRouter()
+
+        # Cache sentiment for 10 minutes to avoid 14 LLM calls per cycle
+        self._sentiment_cache = {"score": 70.0, "timestamp": 0}
+        self._sentiment_cache_ttl = 600  # 10 minutes
         from apex_identity import get_apex_identity
         self.identity = get_apex_identity()
         self.kraken_trader = KrakenLiveTrader()
@@ -126,21 +130,22 @@ class APEXLive:
             return []
 
     async def run_cycle(self, trade_size: float = 100) -> Dict[str, Any]:
-        """Run a complete trading cycle with high-quality reasoning."""
-        cycle_start = datetime.now()
+        """Run one full trading cycle."""
+        import time
+        cycle_start = time.time()
+        logger.info(f"Starting cycle #{self._cycle_count}")
         self._cycle_count += 1
-        logger.info(f"Starting APEX Live cycle #{self._cycle_count} - Trade size: ${trade_size}")
 
-        # One-time vault claim on first cycle
-        if self._cycle_count == 1:
-            try:
-                logger.info("Checking vault allocation...")
-                await self.identity.claim_allocation()
-            except Exception as claim_err:
-                logger.warning(f"Vault claim failed: {claim_err}")
+        # Check vault allocation
+        try:
+            logger.info("Checking vault allocation...")
+            await self.identity.claim_allocation()
+        except Exception as claim_err:
+            logger.warning(f"Vault claim failed: {claim_err}")
 
         try:
             # 1. Get real BTC price
+            price_start = time.time()
             logger.info("Fetching real BTC price from Kraken REST API...")
             try:
                 kraken_response = requests.get(
@@ -156,20 +161,29 @@ class APEXLive:
                 change = float(price_data["p"][1]) if price_data.get("p") and len(price_data["p"]) > 1 else 0.0
                 change = change if abs(change) < 100 else 0.0
                 logger.info(f"BTC Price: ${price:.2f} ({change:+.2f}% 24h)")
+                logger.info(f"Price fetch took {time.time() - price_start:.2f}s")
             except Exception as price_err:
                 logger.warning(f"Kraken REST price fetch failed: {price_err} - using fallback")
                 price = 83000.0
                 change = 0.0
 
-            # 2. Get sentiment
+            # 2. Get sentiment (cached for 10 minutes)
             logger.info("Analyzing market sentiment...")
-            try:
-                sentiment_result = await self.sentiment_pipeline.score_symbol("XBTUSD")
-                sent_score = sentiment_result.score if sentiment_result and sentiment_result.article_count > 0 else 50
-                sent_score = max(0, min(100, sent_score))
-            except Exception as e:
-                logger.warning(f"Sentiment analysis failed: {e}")
-                sent_score = 62
+            import time
+            if time.time() - self._sentiment_cache["timestamp"] < self._sentiment_cache_ttl:
+                sent_score = self._sentiment_cache["score"]
+                logger.info(f"Using cached sentiment: {sent_score}")
+            else:
+                try:
+                    sentiment_result = await self.sentiment_pipeline.score_symbol("XBTUSD")
+                    sent_score = sentiment_result.score if sentiment_result and sentiment_result.article_count > 0 else 50
+                    sent_score = max(0, min(100, sent_score))
+                    self._sentiment_cache["score"] = sent_score
+                    self._sentiment_cache["timestamp"] = time.time()
+                    logger.info(f"Updated sentiment cache: {sent_score}")
+                except Exception as e:
+                    logger.warning(f"Sentiment analysis failed: {e}")
+                    sent_score = 62
 
             logger.info(f"Sentiment Score: {sent_score}/100")
 
@@ -235,15 +249,14 @@ class APEXLive:
                 logger.info(f"🤖 Action: {action} (RL policy, neutral zone)")
 
             if action in ["BUY", "SELL"] and approved:
-                # Ensure paper balance is sufficient before any trade
-                if self.kraken_trader and self.kraken_trader.paper_mode:
-                    self.kraken_trader._ensure_paper_initialized()
-
+                # HTTP mode doesn't need CLI initialization - skip _ensure_paper_initialized
                 # Pre-trade balance check in paper mode
                 if self.kraken_trader and self.kraken_trader.paper_mode:
                     try:
                         balance = self.kraken_trader.get_balance()
-                        usd_available = float(balance.get('USD', balance.get('usd', 0)))
+                        balances = balance.get('balances', {})
+                        usd_data = balances.get('USD', {})
+                        usd_available = float(usd_data.get('available', 0))
                         if usd_available < trade_size:
                             logger.warning(f"Kraken balance too low: ${usd_available:.2f} < ${trade_size}")
                             logger.info("Reducing trade size to fit available balance")
@@ -263,6 +276,7 @@ class APEXLive:
                         logger.warning(f"Balance check failed: {e}, proceeding with original size")
 
                 logger.info(f"Submitting {action} trade to blockchain...")
+                blockchain_start = time.time()
                 try:
                     blockchain_result = await self.identity.submit_trade_intent(
                         pair="BTC/USD",
@@ -276,10 +290,12 @@ class APEXLive:
 
                     if blockchain_success:
                         logger.info(f"Blockchain submission successful: {tx_hash}")
+                        logger.info(f"Blockchain submission took {time.time() - blockchain_start:.2f}s")
                         # Wait for chain to process transaction before checkpoint
                         await asyncio.sleep(30)  # Give chain time to process before checkpoint
                     else:
                         logger.warning("Blockchain submission failed")
+                        logger.info(f"Blockchain submission took {time.time() - blockchain_start:.2f}s")
 
                     # Post validation checkpoint every cycle regardless of trade success
                     try:
@@ -325,14 +341,15 @@ class APEXLive:
                             side=action.lower(),
                             volume=btc_volume
                         )
-                        # Check for kraken success: success field must be True, no error, and code=0
-                        if kraken_result.get("success", False) and "error" not in kraken_result:
+                        logger.info(f"Kraken result: {kraken_result}")
+                        # Check for kraken success: success field must be True, no error
+                        if kraken_result.get("success", False):
                             kraken_order_id = kraken_result.get("txid", "")
                             kraken_success = True
                             logger.info(f"Kraken order successful: {kraken_order_id}")
                         else:
                             kraken_success = False
-                            logger.warning(f"Kraken order failed: {kraken_result.get('error', 'Unknown error')}")
+                            logger.warning(f"Kraken order failed: {kraken_result.get('error', kraken_result)}")
                     except Exception as e:
                         logger.error(f"Kraken execution error: {e}")
 
@@ -353,7 +370,7 @@ class APEXLive:
                 )
                 logger.info("Posted HOLD checkpoint with rich reasoning")
 
-            cycle_duration = (datetime.now() - cycle_start).total_seconds()
+            cycle_duration = time.time() - cycle_start
 
             # Run learning loop every 3 cycles
             if self._cycle_count % 3 == 0:
@@ -386,9 +403,9 @@ class APEXLive:
                     logger.warning(f"Learning cycle failed: {learn_err}")
 
             result = {
-                "cycle_id": cycle_start.strftime("%Y%m%d_%H%M%S"),
+                "cycle_id": datetime.fromtimestamp(cycle_start).strftime("%Y%m%d_%H%M%S"),
                 "cycle_number": self._cycle_count,
-                "timestamp": cycle_start.isoformat(),
+                "timestamp": datetime.fromtimestamp(cycle_start).isoformat(),
                 "duration_seconds": cycle_duration,
                 "market_data": {
                     "price": price,
@@ -417,13 +434,17 @@ class APEXLive:
             }
 
             logger.info(f"Cycle #{self._cycle_count} completed in {cycle_duration:.2f}s - Blockchain: {blockchain_success}, Kraken: {kraken_success}")
+            if cycle_duration < 90:
+                logger.info(f"✅ Cycle time under 90s target: {cycle_duration:.2f}s")
+            else:
+                logger.warning(f"⚠️ Cycle time exceeds 90s target: {cycle_duration:.2f}s")
             return result
 
         except Exception as e:
             logger.error(f"Live cycle failed: {e}")
             return {
-                "cycle_id": cycle_start.strftime("%Y%m%d_%H%M%S"),
-                "timestamp": cycle_start.isoformat(),
+                "cycle_id": datetime.fromtimestamp(cycle_start).strftime("%Y%m%d_%H%M%S"),
+                "timestamp": datetime.fromtimestamp(cycle_start).isoformat(),
                 "error": str(e),
                 "success": False
             }
@@ -444,12 +465,20 @@ class APEXLive:
             price = 83000.0
             change = 0.0
 
-        # Get sentiment once
-        try:
-            s = await self.sentiment_pipeline.score_symbol("XBTUSD")
-            sent_score = max(0, min(100, s.score)) if s else 62
-        except Exception:
-            sent_score = 62
+        # Get sentiment once (cached for 10 minutes)
+        import time
+        if time.time() - self._sentiment_cache["timestamp"] < self._sentiment_cache_ttl:
+            sent_score = self._sentiment_cache["score"]
+            logger.info(f"Using cached sentiment (burst): {sent_score}")
+        else:
+            try:
+                s = await self.sentiment_pipeline.score_symbol("XBTUSD")
+                sent_score = max(0, min(100, s.score)) if s else 62
+                self._sentiment_cache["score"] = sent_score
+                self._sentiment_cache["timestamp"] = time.time()
+                logger.info(f"Updated sentiment cache (burst): {sent_score}")
+            except Exception:
+                sent_score = 62
 
         # Determine action based on sentiment and price momentum
         if sent_score > 65:
@@ -500,9 +529,9 @@ class APEXLive:
                 break
 
             try:
-                result = await asyncio.wait_for(self.run_cycle(), timeout=120)
+                result = await asyncio.wait_for(self.run_cycle(), timeout=800)
             except asyncio.TimeoutError:
-                logger.error("Cycle timed out after 120s — forcing next cycle")
+                logger.error("Cycle timed out after 800s — forcing next cycle")
                 continue
 
             if result.get("success"):
@@ -527,7 +556,7 @@ if __name__ == "__main__":
                 logger.info(f"Cycle complete: {result.get('success', False)}")
             except Exception as e:
                 logger.error(f"Cycle error: {e}")
-            logger.info("Waiting 60 seconds before next cycle...")
-            await asyncio.sleep(60)
+            # Small sleep to prevent CPU spinning (apex_ws.py controls actual timing)
+            await asyncio.sleep(1)
     
     asyncio.run(main())

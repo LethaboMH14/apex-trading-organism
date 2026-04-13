@@ -1,55 +1,64 @@
-# Environment variables
-.env
-
-# Python cache
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
 *.pyc
 *.pyo
 *.pyd
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
+dist/
+build/
 *.egg
+.eggs/
 
-# Node modules
+# Environment — NEVER COMMIT PRIVATE KEYS
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+
+# Node
 node_modules/
-apex/dashboard/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Private keys and sensitive data
-*.key
-*.pem
+# Vite build output
+apex/dashboard/dist/
+apex/dashboard/.vite/
+
+# Large model files
+*.pt
+*.pth
+*.onnx
+models/
+
+# Local data files (contain trade history)
+trade_memory.jsonl
+checkpoints.jsonl
+compliance_log.jsonl
+indexed_events.jsonl
+indexer_state.json
 agent-id.json
 
-# IDE files
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Coverage reports
-htmlcov/
-.coverage
-.coverage.*
-coverage.xml
-
-# pytest
-.pytest_cache/
+# Temp files
+structure.txt
+*.tmp
+*.bak

@@ -1,0 +1,511 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "agentRegistryAddress",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "ECDSAInvalidSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "length",
+        "type": "uint256"
+      }
+    ],
+    "name": "ECDSAInvalidSignatureLength",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "s",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ECDSAInvalidSignatureS",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidShortString",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "str",
+        "type": "string"
+      }
+    ],
+    "name": "StringTooLong",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [],
+    "name": "EIP712DomainChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "agentId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxPositionUsdScaled",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxTradesPerHour",
+        "type": "uint256"
+      }
+    ],
+    "name": "RiskParamsSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "agentId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "intentHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amountUsdScaled",
+        "type": "uint256"
+      }
+    ],
+    "name": "TradeApproved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "agentId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "intentHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "pair",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "action",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amountUsdScaled",
+        "type": "uint256"
+      }
+    ],
+    "name": "TradeIntentSubmitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "agentId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "intentHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      }
+    ],
+    "name": "TradeRejected",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "TRADE_INTENT_TYPEHASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "agentRegistry",
+    "outputs": [
+      {
+        "internalType": "contract AgentRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "domainSeparator",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "eip712Domain",
+    "outputs": [
+      {
+        "internalType": "bytes1",
+        "name": "fields",
+        "type": "bytes1"
+      },
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "version",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "chainId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "verifyingContract",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "salt",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "extensions",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "agentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getIntentNonce",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "agentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTradeRecord",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "count",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "windowStart",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "riskParams",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "maxPositionUsdScaled",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxDrawdownBps",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxTradesPerHour",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "active",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "agentId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxPositionUsdScaled",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxDrawdownBps",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxTradesPerHour",
+        "type": "uint256"
+      }
+    ],
+    "name": "setRiskParams",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "agentId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "agentWallet",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "pair",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "action",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amountUsdScaled",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxSlippageBps",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct RiskRouter.TradeIntent",
+        "name": "intent",
+        "type": "tuple"
+      }
+    ],
+    "name": "simulateIntent",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "approved",
+        "type": "bool"
+      },
+      {
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "agentId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "agentWallet",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "pair",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "action",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amountUsdScaled",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxSlippageBps",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct RiskRouter.TradeIntent",
+        "name": "intent",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "submitTradeIntent",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "approved",
+        "type": "bool"
+      },
+      {
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
