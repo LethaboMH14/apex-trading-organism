@@ -228,30 +228,31 @@ The dashboard includes a dedicated **System Health** tab with:
 ---
 
 ## 📁 Project Structure
-APEX/
-├── apex/
-│   ├── apex_live.py           Main orchestrator
-│   ├── apex_ws.py             WebSocket server
-│   ├── apex_identity.py       ERC-8004 & blockchain
-│   ├── apex_risk.py           Risk management
-│   ├── apex_sentiment.py      Sentiment pipeline
-│   ├── apex_rl.py             Reinforcement learning
-│   ├── apex_learn.py          Sharpe optimizer
-│   ├── apex_llm_router.py     Multi-provider LLM routing
-│   ├── apex_reasoning.py      Reasoning chain builder
-│   ├── apex_memory.py         Trade memory
-│   ├── apex_indexer.py        Azure CosmosDB indexer
-│   ├── kraken_live.py         Kraken HTTP execution
-│   ├── requirements.txt       Python dependencies
-│   ├── .env.example           Environment template
-│   └── dashboard/
-│       ├── src/
-│       │   ├── App.jsx        12-tab dashboard
-│       │   ├── App.css        Styles
-│       │   └── index.css      Global styles
-│       ├── package.json
-│       └── vite.config.js
-└── README.md
+
+| Backend Files | Description |
+|---|---|
+| `apex_live.py` | Main orchestrator |
+| `apex_ws.py` | WebSocket server |
+| `apex_identity.py` | ERC-8004 & blockchain |
+| `apex_risk.py` | Risk management |
+| `apex_sentiment.py` | Sentiment pipeline |
+| `apex_rl.py` | Reinforcement learning |
+| `apex_learn.py` | Sharpe optimizer |
+| `apex_llm_router.py` | Multi-provider LLM routing |
+| `apex_reasoning.py` | Reasoning chain builder |
+| `apex_memory.py` | Trade memory |
+| `apex_indexer.py` | Azure CosmosDB indexer |
+| `kraken_live.py` | Kraken HTTP execution |
+| `requirements.txt` | Python dependencies |
+| `.env.example` | Environment template |
+
+| Frontend Files | Description |
+|---|---|
+| `dashboard/src/App.jsx` | 12-tab dashboard |
+| `dashboard/src/App.css` | Styles |
+| `dashboard/src/index.css` | Global styles |
+| `dashboard/package.json` | NPM dependencies |
+| `dashboard/vite.config.js` | Vite configuration |
 
 ---
 
@@ -350,7 +351,7 @@ npm run dev
 |---|---|
 | Live App | https://apex-trading-organism.vercel.app |
 | GitHub | https://github.com/LethaboMH14/apex-trading-organism |
-| Video | [YouTube Demo](https://youtube.com) |
+| Video | [YouTube Demo](https://www.youtube.com/watch?v=rCNcSzowHHY) |
 | Twitter | [@AOrganism27904](https://x.com/AOrganism27904) |
 | ERC-8004 Agent | Token #26 — 0x909375eC03d6A801A95Bcf20E2260d671a84140B |
 
