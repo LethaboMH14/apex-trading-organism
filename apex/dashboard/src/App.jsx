@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Area, ReferenceLine } from 'recharts'
 import './App.css'
 
-const WS_URL = 'ws://localhost:8766'
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8766'
+const IS_VERCEL = window.location.hostname.includes('vercel.app')
 const APP_START = Date.now()
 
 const REAL = {
@@ -102,6 +103,12 @@ export default function App() {
   const uptime = useUptime()
 
   const connect = useCallback(() => {
+    // Skip WebSocket connection on Vercel - use demo data instead
+    if (IS_VERCEL) {
+      setWs(false)
+      return
+    }
+
     try {
       const w = new WebSocket(WS_URL)
       wsRef.current = w
@@ -155,6 +162,56 @@ export default function App() {
   }, [])
 
   useEffect(() => { connect(); return () => wsRef.current?.close() }, [connect])
+
+  // Populate demo data when running on Vercel (no WebSocket connection)
+  useEffect(() => {
+    if (IS_VERCEL && trades.length === 0) {
+      const demoTrades = [
+        {
+          id: '1',
+          action: 'BUY',
+          price: 72700,
+          qty: '0.001374',
+          pnl: 5.23,
+          hash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          reasoning: 'BTC $72,700 | Sentiment 73/100 | Risk Approved | RL:BUY',
+          confidence: 82,
+          tradeSize: 100,
+        },
+        {
+          id: '2',
+          action: 'SELL',
+          price: 72650,
+          qty: '0.001376',
+          pnl: -2.15,
+          hash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+          timestamp: new Date(Date.now() - 7200000).toISOString(),
+          reasoning: 'BTC $72,650 | Sentiment 68/100 | Risk Approved | RL:SELL',
+          confidence: 79,
+          tradeSize: 100,
+        },
+        {
+          id: '3',
+          action: 'BUY',
+          price: 72600,
+          qty: '0.001378',
+          pnl: 3.87,
+          hash: '0x567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef123456',
+          timestamp: new Date(Date.now() - 10800000).toISOString(),
+          reasoning: 'BTC $72,600 | Sentiment 75/100 | Risk Approved | RL:BUY',
+          confidence: 84,
+          tradeSize: 100,
+        },
+      ]
+      setTrades(demoTrades)
+      setLastTrade(demoTrades[0])
+      setCycleCount(1853)
+      setBtcPrice(72700)
+      setRunningPnL(321.70)
+      setCycleStatus('Demo Mode - No Live Connection')
+    }
+  }, [IS_VERCEL, trades.length])
 
   const now = Date.now()
   const chartData = useMemo(() => {
@@ -655,14 +712,14 @@ export default function App() {
                 </div>
 
                 <div className="card">
-                  <div className="card-title">⏱️ Agent Invocation Latency</div>
+                  <div className="card-title"> Agent Invocation Latency</div>
                   {[
-                    {agent:'DR. YUKI TANAKA', task:'Price Fetch', latency:'0.8–1.5s', stage:'0s', color:'#10b981'},
-                    {agent:'DR. JABARI MENSAH', task:'Sentiment (40 articles)', latency:'8–12s', stage:'8s', color:'#3b82f6'},
-                    {agent:'DR. SIPHO NKOSI', task:'Risk Gate', latency:'< 1s', stage:'12s', color:'#10b981'},
-                    {agent:'DR. ZARA OKAFOR', task:'Strategy Decision', latency:'2–4s', stage:'18s', color:'#F5A623'},
-                    {agent:'DR. PRIYA NAIR', task:'EIP-712 + Blockchain', latency:'16–29s', stage:'32s', color:'#a855f7'},
-                    {agent:'DR. PRIYA NAIR', task:'Validation Checkpoint', latency:'8–15s', stage:'45s', color:'#a855f7'},
+                    {agent:'DR. YUKI TANAKA', task:'Price Fetch', latency:'0.8-1.5s', stage:'0s', color:'#10b981'},
+                    {agent:'DR. JABARI MENSAH', task:'Sentiment (40 articles)', latency:'8-12s', stage:'8s', color:'#3b82f6'},
+                    {agent:'DR. SIPHO NKOSI', task:'Risk Gate (8 layers)', latency:'1-3s', stage:'12s', color:'#10b981'},
+                    {agent:'DR. ZARA OKAFOR', task:'Strategy Decision', latency:'2-4s', stage:'18s', color:'#F5A623'},
+                    {agent:'DR. PRIYA NAIR', task:'EIP-712 + Blockchain', latency:'16-29s', stage:'32s', color:'#a855f7'},
+                    {agent:'DR. PRIYA NAIR', task:'Validation Checkpoint', latency:'8-15s', stage:'45s', color:'#a855f7'},
                     {agent:'ENGR. MARCUS ODUYA', task:'Kraken Execution', latency:'< 2s', stage:'52s', color:'#10b981'},
                     {agent:'DR. LIN QIANRU', task:'PPO RL Update', latency:'< 1s', stage:'58s', color:'#10b981'},
                   ].map(row => (
@@ -686,7 +743,7 @@ export default function App() {
                     border:'1px solid rgba(16,185,129,0.15)',
                     fontSize:'0.65rem',color:'#10b981',textAlign:'center'
                   }}>
-                    Total cycle time: 67–95 seconds ✅ (target: < 90s)
+                    Total cycle time: 67-95 seconds (target: less than 90s)
                   </div>
                 </div>
               </div>
